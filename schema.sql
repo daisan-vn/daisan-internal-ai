@@ -31,3 +31,13 @@ CREATE TABLE IF NOT EXISTS access_sessions (
 );
 CREATE INDEX IF NOT EXISTS idx_access_email ON access_sessions (user_email, last_seen_at DESC);
 CREATE INDEX IF NOT EXISTS idx_access_last ON access_sessions (last_seen_at DESC);
+
+-- Trạng thái đồng bộ Google Drive -> R2 (1 dòng id='drive').
+CREATE TABLE IF NOT EXISTS sync_status (
+  id          TEXT PRIMARY KEY,
+  state       TEXT,                  -- idle | running | done | error
+  started_at  INTEGER,
+  finished_at INTEGER,
+  summary     TEXT,                  -- JSON SyncSummary
+  error       TEXT
+);

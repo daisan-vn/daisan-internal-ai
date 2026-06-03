@@ -42,8 +42,16 @@
 
     // Email được xem trang admin/lịch sử đăng nhập (phân tách bằng dấu phẩy).
     // Thêm email quản lý khác vào đây nếu muốn cho họ xem. Để trống = mọi người xem được.
-    "ADMIN_EMAILS": "nhamphongdaijsc@gmail.com"
+    "ADMIN_EMAILS": "nhamphongdaijsc@gmail.com",
+
+    // --- Google Drive sync (CHỈ ĐỌC) — xem src/gdrive.ts ---
+    // ID thư mục Drive cần đồng bộ (lấy từ URL thư mục; nhiều thì cách nhau dấu phẩy).
+    // Khóa service account đặt riêng: wrangler secret put GDRIVE_SA_JSON
+    "GDRIVE_FOLDER_ID": ""
   },
+
+  // Cron: tự động đồng bộ Google Drive mỗi ngày lúc 02:00 giờ VN (19:00 UTC).
+  "triggers": { "crons": ["0 19 * * *"] },
 
   // Custom domain để nhân viên truy cập; sẽ bọc Cloudflare Access (chỉ email @daisan).
   "routes": [{ "pattern": "troly.daisan.ai", "custom_domain": true }],

@@ -4,6 +4,7 @@ import { streamClaude, streamClaudeAgent } from "./llm";
 import { SYSTEM_PROMPT, buildContext, odooSystemNote } from "./prompt";
 import { ODOO_TOOLS, runOdooTool, describeOdooTool, odooConfigured } from "./odoo";
 import { recordAccess, isAdmin, listAccess } from "./access";
+import { gdriveConfigured, runSyncWithStatus, readSyncStatus } from "./gdrive";
 import * as hist from "./history";
 
 export default {
@@ -30,6 +31,26 @@ export default {
       }
       const days = Number(url.searchParams.get("days")) || 0;
       return Response.json(await listAccess(env, days));
+    }
+
+    // Đồng bộ Google Drive -> kho tài liệu (chỉ admin). GET xem trạng thái, POST chạy.
+    if (path === "/api/admin/sync-drive") {
+      if (!isAdmin(env, hist.userEmail(request))) {
+        return Response.json({ error: "Bạn không có quyền." }, { status: 403 });
+      }
+      if (request.method === "GET") {
+        return Response.json({ configured: gdriveConfigured(env), status: await readSyncStatus(env) });
+      }
+      if (request.method === "POST") {
+        if (!gdriveConfigured(env)) {
+          return Response.json(
+            { error: "Chưa cấu hình Google Drive (cần GDRIVE_SA_JSON + GDRIVE_FOLDER_ID)." },
+            { status: 400 },
+          );
+        }
+        ctx.waitUntil(runSyncWithStatus(env));
+        return Response.json({ started: true });
+      }
     }
 
     // Danh sách hội thoại của riêng người dùng.
@@ -100,6 +121,11 @@ export default {
 
     // Mọi đường dẫn khác -> file tĩnh (UI chat) trong /public.
     return env.ASSETS.fetch(request);
+  },
+
+  // Cron: tự động đồng bộ Google Drive -> kho tài liệu (xem triggers trong wrangler.jsonc).
+  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    if (gdriveConfigured(env)) ctx.waitUntil(runSyncWithStatus(env));
   },
 } satisfies ExportedHandler<Env>;
 

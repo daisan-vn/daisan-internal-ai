@@ -31,6 +31,12 @@ export interface Env {
   ODOO_UID?: string;
   ODOO_LOGIN?: string;
   ODOO_API_KEY?: string;
+
+  // --- Google Drive sync (CHỈ ĐỌC) — xem src/gdrive.ts ---
+  // var: GDRIVE_FOLDER_ID (ID thư mục, nhiều thì cách nhau dấu phẩy).
+  // secret: GDRIVE_SA_JSON (toàn bộ JSON khóa service account).
+  GDRIVE_FOLDER_ID?: string;
+  GDRIVE_SA_JSON?: string;
 }
 
 /** Định nghĩa một công cụ (tool) gửi cho Claude theo chuẩn Anthropic Messages API. */

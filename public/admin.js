@@ -180,3 +180,61 @@ function renderAccess() {
 if (accRefresh) accRefresh.addEventListener("click", loadAccess);
 if (accRange) accRange.addEventListener("change", loadAccess);
 if (accSearch) accSearch.addEventListener("input", renderAccess);
+
+/* ===================== Đồng bộ Google Drive ===================== */
+const gdriveCard = document.getElementById("gdriveCard");
+const gdriveState = document.getElementById("gdriveState");
+const gdriveStatusEl = document.getElementById("gdriveStatus");
+const gdriveSyncBtn = document.getElementById("gdriveSync");
+let gdrivePoll = null;
+
+function renderSyncStatus(d) {
+  const st = (d && d.status) || {};
+  if (!d || !d.configured) {
+    gdriveState.innerHTML = "⚠️ <b>Chưa kết nối Google Drive.</b> Cần cấu hình service account + ID thư mục (xem hướng dẫn). Khi xong, nút bên dưới sẽ hoạt động.";
+    if (gdriveSyncBtn) gdriveSyncBtn.disabled = true;
+    return;
+  }
+  if (gdriveSyncBtn) gdriveSyncBtn.disabled = st.state === "running";
+  if (st.state === "running") {
+    gdriveState.textContent = "⏳ Đang đồng bộ tài liệu từ Google Drive…";
+  } else if (st.state === "done" && st.summary) {
+    let s = {};
+    try { s = JSON.parse(st.summary); } catch {}
+    gdriveState.textContent =
+      "✅ Lần đồng bộ gần nhất: +" + (s.added || 0) + " mới, " + (s.updated || 0) + " cập nhật, " +
+      (s.skipped || 0) + " bỏ qua" + (s.errors && s.errors.length ? ", " + s.errors.length + " lỗi" : "") +
+      (st.finished_at ? " · " + fmtTime(st.finished_at) : "") +
+      (s.truncated ? " (còn file chưa xong — sẽ tiếp tục lần sau)" : "");
+  } else if (st.state === "error") {
+    gdriveState.textContent = "❌ Lỗi đồng bộ: " + (st.error || "") + (st.finished_at ? " · " + fmtTime(st.finished_at) : "");
+  } else {
+    gdriveState.textContent = "✅ Đã kết nối Google Drive. Chưa đồng bộ lần nào — bấm \"Đồng bộ ngay\".";
+  }
+}
+
+async function loadSyncStatus() {
+  try {
+    const res = await fetch("/api/admin/sync-drive");
+    if (res.status === 403) { if (gdriveCard) gdriveCard.style.display = "none"; return; }
+    const d = await res.json();
+    renderSyncStatus(d);
+    const running = d && d.status && d.status.state === "running";
+    if (running && !gdrivePoll) gdrivePoll = setInterval(loadSyncStatus, 3000);
+    if (!running && gdrivePoll) { clearInterval(gdrivePoll); gdrivePoll = null; }
+  } catch {}
+}
+
+if (gdriveSyncBtn) gdriveSyncBtn.addEventListener("click", async () => {
+  gdriveSyncBtn.disabled = true;
+  gdriveStatusEl.textContent = "Đang khởi động…";
+  try {
+    const r = await fetch("/api/admin/sync-drive", { method: "POST" });
+    const j = await r.json();
+    if (!r.ok) { gdriveStatusEl.textContent = "❌ " + (j.error || "Lỗi"); gdriveSyncBtn.disabled = false; return; }
+    gdriveStatusEl.textContent = "";
+    if (!gdrivePoll) gdrivePoll = setInterval(loadSyncStatus, 3000);
+    loadSyncStatus();
+  } catch (e) { gdriveStatusEl.textContent = "❌ " + e.message; gdriveSyncBtn.disabled = false; }
+});
+loadSyncStatus();
