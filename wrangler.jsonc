@@ -1,0 +1,43 @@
+{
+  // Trợ lý AI nội bộ Daisan Group.
+  // Docs: https://developers.cloudflare.com/workers/wrangler/configuration/
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "daisan-internal-ai",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-01-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS"
+  },
+
+  // Workers AI — dùng cho binding AutoRAG (env.AI.autorag(...)).
+  "ai": {
+    "binding": "AI"
+  },
+
+  // Biến cấu hình (không phải secret). Secret đặt qua `wrangler secret put`.
+  "vars": {
+    // Tên AutoRAG instance đã tạo trong dashboard (AI > AI Search).
+    "AUTORAG_NAME": "daisan-internal-ai",
+    // AI Gateway dùng chung của Daisan để route Claude (billing/analytics gộp).
+    "CF_ACCOUNT_ID": "REPLACE_WITH_ACCOUNT_ID",
+    "AI_GATEWAY_NAME": "daisan-gw",
+    // Model Claude mặc định (điều chỉnh theo model bạn được cấp).
+    "DEFAULT_MODEL": "claude-sonnet-4-6",
+    // Số đoạn tài liệu lấy về mỗi truy vấn.
+    "RAG_TOP_K": "8",
+    // Ngưỡng điểm tương đồng tối thiểu (0-1) để giữ đoạn tài liệu.
+    "RAG_SCORE_THRESHOLD": "0.3"
+  },
+
+  "observability": {
+    "enabled": true
+  }
+
+  // --- Phase 2: lịch sử chat + phản hồi 👍/👎 ---
+  // "d1_databases": [
+  //   { "binding": "DB", "database_name": "daisan-internal-ai", "database_id": "..." }
+  // ]
+}

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Trợ lý AI nội bộ — Daisan Group</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="header">
+        <div class="brand">
+          <span class="logo">🟦</span>
+          <div>
+            <h1>Trợ lý AI nội bộ</h1>
+            <p>Daisan Group · Odoo · Kế toán · SOP · Kinh doanh · CRM · Mua · Kho</p>
+          </div>
+        </div>
+        <label class="domain">
+          Phòng ban
+          <select id="domain">
+            <option value="">Tất cả</option>
+            <option value="odoo">Odoo</option>
+            <option value="ketoan">Kế toán</option>
+            <option value="sop">SOP / Quy trình</option>
+            <option value="crm">CRM / Kinh doanh</option>
+            <option value="mua">Mua hàng</option>
+            <option value="kho">Kho</option>
+          </select>
+        </label>
+      </header>
+
+      <main id="messages" class="messages">
+        <div class="msg assistant">
+          <div class="bubble">
+            Chào bạn 👋 Mình là trợ lý nội bộ Daisan. Hỏi mình về quy trình Odoo,
+            kế toán, SOP, CRM, mua hàng, kho… Mình chỉ trả lời dựa trên tài liệu
+            nội bộ và luôn ghi rõ nguồn.
+          </div>
+        </div>
+      </main>
+
+      <form id="form" class="composer">
+        <textarea
+          id="input"
+          rows="1"
+          placeholder="Nhập câu hỏi… (Enter để gửi, Shift+Enter xuống dòng)"
+          autocomplete="off"
+        ></textarea>
+        <button id="send" type="submit">Gửi</button>
+      </form>
+    </div>
+    <script src="/chat.js"></script>
+  </body>
+</html>

@@ -1,0 +1,8 @@
+# Sao chép file này thành `.dev.vars` để chạy local (wrangler dev).
+# Trên production, đặt bằng: wrangler secret put ANTHROPIC_API_KEY
+
+# API key của Anthropic (Claude). Route qua AI Gateway daisan-gw.
+ANTHROPIC_API_KEY=sk-ant-...
+
+# (Tùy chọn) Token bảo vệ AI Gateway nếu bạn bật "Authenticated Gateway".
+# AI_GATEWAY_TOKEN=...
