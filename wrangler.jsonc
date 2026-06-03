@@ -32,7 +32,13 @@
     "RAG_TOP_K": "8",
     // Ngưỡng điểm tương đồng tối thiểu (0-1) để giữ đoạn tài liệu.
     // 0.2: ưu tiên recall cho tiếng Việt (bge-m3 điểm thường thấp). Tăng dần nếu nhiễu.
-    "RAG_SCORE_THRESHOLD": "0.2"
+    "RAG_SCORE_THRESHOLD": "0.2",
+
+    // --- Odoo (CHỈ ĐỌC) — xem src/odoo.ts ---
+    // URL/DB/UID là cấu hình thường; API key + login đặt bằng `wrangler secret put`.
+    "ODOO_URL": "https://dserp.odoo.com",
+    "ODOO_DB": "daisan-vn-daisanerp-main-22763695",
+    "ODOO_UID": "6"
   },
 
   // Custom domain để nhân viên truy cập; sẽ bọc Cloudflare Access (chỉ email @daisan).

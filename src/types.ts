@@ -20,6 +20,21 @@ export interface Env {
   // Cờ chỉ dùng cho local dev (.dev.vars): "true" -> gọi thẳng Anthropic,
   // bỏ qua AI Gateway (xem llm.ts). Production để trống.
   ANTHROPIC_DIRECT?: string;
+
+  // --- Odoo (CHỈ ĐỌC) — xem src/odoo.ts ---
+  // vars (wrangler.jsonc): URL, DB, UID. secrets: ODOO_API_KEY, ODOO_LOGIN.
+  ODOO_URL?: string;
+  ODOO_DB?: string;
+  ODOO_UID?: string;
+  ODOO_LOGIN?: string;
+  ODOO_API_KEY?: string;
+}
+
+/** Định nghĩa một công cụ (tool) gửi cho Claude theo chuẩn Anthropic Messages API. */
+export interface ToolDef {
+  name: string;
+  description: string;
+  input_schema: Record<string, unknown>;
 }
 
 /** Một lượt hội thoại gửi từ client. */

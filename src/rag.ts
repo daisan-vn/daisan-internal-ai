@@ -21,12 +21,15 @@ export async function retrieve(
   const maxResults = domain ? Math.min(topK * 4, 30) : topK;
 
   const ar = env.AI.autorag(env.AUTORAG_NAME);
-  const result = await ar.search({
-    query,
-    max_num_results: maxResults,
-    ranking_options: { score_threshold: threshold },
-    rewrite_query: true,
-  } as never);
+  const base = { query, max_num_results: maxResults, ranking_options: { score_threshold: threshold } };
+  // rewrite_query cải thiện truy hồi nhưng cần model rewrite của AutoRAG hoạt động.
+  // Nếu bước rewrite lỗi (5006: thiếu prompt/messages) -> truy hồi lại với query gốc.
+  let result: Awaited<ReturnType<typeof ar.search>>;
+  try {
+    result = await ar.search({ ...base, rewrite_query: true } as never);
+  } catch {
+    result = await ar.search({ ...base, rewrite_query: false } as never);
+  }
 
   let chunks: RetrievedChunk[] = [];
   for (const doc of result.data ?? []) {

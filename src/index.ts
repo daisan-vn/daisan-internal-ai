@@ -1,7 +1,8 @@
 import type { ChatRequest, Env } from "./types";
 import { retrieve } from "./rag";
-import { streamClaude } from "./llm";
-import { SYSTEM_PROMPT, buildContext } from "./prompt";
+import { streamClaude, streamClaudeAgent } from "./llm";
+import { SYSTEM_PROMPT, buildContext, odooSystemNote } from "./prompt";
+import { ODOO_TOOLS, runOdooTool, describeOdooTool, odooConfigured } from "./odoo";
 import * as hist from "./history";
 
 export default {
@@ -115,10 +116,15 @@ async function handleChat(request: Request, env: Env): Promise<Response> {
   // 1) Truy hồi tài liệu nội bộ liên quan.
   const chunks = await retrieve(env, lastUser.content, body.domain);
   const context = buildContext(chunks);
-  const system = `${SYSTEM_PROMPT}\n\n${context}`;
+  const useOdoo = odooConfigured(env);
+  const today = new Date().toISOString().slice(0, 10);
+  const system = useOdoo
+    ? `${SYSTEM_PROMPT}\n\n${odooSystemNote(today)}\n\n${context}`
+    : `${SYSTEM_PROMPT}\n\n${context}`;
 
   // 2) Sinh câu trả lời bằng Claude, stream về client; lưu lại khi xong.
-  const sources = [...new Set(chunks.map((c) => c.filename))];
+  //    Nếu đã nối Odoo -> dùng vòng lặp tool-calling để Claude tra cứu dữ liệu sống.
+  const docSources = [...new Set(chunks.map((c) => c.filename))];
   const encoder = new TextEncoder();
   const convId = conversationId;
 
@@ -127,11 +133,32 @@ async function handleChat(request: Request, env: Env): Promise<Response> {
       const send = (obj: unknown) =>
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`));
       let answer = "";
+      let usedOdoo = false;
       try {
-        for await (const text of streamClaude(env, system, messages)) {
-          answer += text;
-          send({ text });
+        if (useOdoo) {
+          for await (const ev of streamClaudeAgent(
+            env,
+            system,
+            messages,
+            ODOO_TOOLS,
+            (name, input) => runOdooTool(env, name, input),
+            describeOdooTool,
+          )) {
+            if (ev.type === "text") {
+              answer += ev.text;
+              send({ text: ev.text });
+            } else {
+              if (ev.phase === "start") usedOdoo = true;
+              send({ tool: { name: ev.name, phase: ev.phase, summary: ev.summary } });
+            }
+          }
+        } else {
+          for await (const text of streamClaude(env, system, messages)) {
+            answer += text;
+            send({ text });
+          }
         }
+        const sources = usedOdoo ? [...docSources, "Odoo (dữ liệu trực tiếp)"] : docSources;
         if (answer) {
           await hist.addMessageRow(env, convId, "assistant", answer, sources);
           await hist.touchConversation(env, convId);

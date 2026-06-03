@@ -17,10 +17,10 @@ let streaming = false;
 let lastQuestion = null;
 
 const EXAMPLES = [
+  "Tháng này có bao nhiêu đơn bán hàng?",
+  "Top 5 khách hàng theo doanh thu?",
+  "Tổng công nợ phải thu hiện tại là bao nhiêu?",
   "Cách tạo hóa đơn bán hàng cho khách trong Odoo?",
-  "Quy trình nhập kho gồm những bước nào?",
-  "Cách tra cứu công nợ phải thu của khách hàng?",
-  "SOP duyệt đơn mua hàng ở Daisan?",
 ];
 
 /* ---------------- Markdown render (escape trước → an toàn XSS) ---------------- */
@@ -100,7 +100,7 @@ function renderEmpty() {
   wrap.innerHTML =
     '<div class="empty-logo">✦</div>' +
     "<h2>Chào mừng đến Trợ lý AI nội bộ Daisan</h2>" +
-    "<p>Hỏi về Odoo, kế toán, SOP, CRM, mua hàng, kho — mình trả lời dựa trên tài liệu nội bộ và luôn kèm nguồn.</p>" +
+    "<p>Hỏi về số liệu trực tiếp trong Odoo (đơn hàng, doanh thu, công nợ, tồn kho…) và quy trình/SOP nội bộ — mình trả lời dựa trên dữ liệu sống + tài liệu nội bộ, luôn kèm nguồn.</p>" +
     '<div class="examples"></div>';
   const ex = wrap.querySelector(".examples");
   EXAMPLES.forEach((q) => {
@@ -323,6 +323,13 @@ async function streamAnswer() {
           answer += event.text;
           const now = performance.now();
           if (now - lastRender > 60) { bubble.innerHTML = renderMarkdown(answer); lastRender = now; scrollBottom(); }
+        } else if (event.tool) {
+          // Hiện trạng thái khi Claude đang tra cứu Odoo (chỉ khi chưa có chữ trả lời).
+          if (!answer && event.tool.phase !== "error") {
+            bubble.classList.add("typing"); bubble.classList.remove("md");
+            bubble.textContent = `🔎 Tra cứu Odoo: ${event.tool.summary}…`;
+            scrollBottom();
+          }
         } else if (event.error) {
           bubble.classList.remove("typing"); bubble.classList.remove("md");
           bubble.textContent = `⚠️ ${event.error}`;

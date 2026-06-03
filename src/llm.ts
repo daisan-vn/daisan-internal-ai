@@ -1,4 +1,4 @@
-import type { ChatMessage, Env } from "./types";
+import type { ChatMessage, Env, ToolDef } from "./types";
 
 const ANTHROPIC_DIRECT = "https://api.anthropic.com/v1/messages";
 
@@ -81,4 +81,155 @@ export async function* streamClaude(
       }
     }
   }
+}
+
+/* ------------------------- Vòng lặp tool-calling (agentic) ------------------------- */
+
+/** Sự kiện trả về từ vòng lặp agent để Worker đẩy SSE về client. */
+export type AgentEvent =
+  | { type: "text"; text: string }
+  | { type: "tool"; name: string; phase: "start" | "done" | "error"; summary: string };
+
+interface StreamBlock {
+  type: "text" | "tool_use";
+  text?: string;
+  id?: string;
+  name?: string;
+  json?: string;
+}
+
+/**
+ * Gọi Claude với công cụ (tools) và CHẠY VÒNG LẶP: Claude có thể yêu cầu gọi tool
+ * (vd truy vấn Odoo), Worker thực thi rồi trả kết quả lại cho Claude, lặp đến khi
+ * Claude đưa ra câu trả lời cuối. Văn bản được stream ngay khi có; mỗi lần gọi tool
+ * phát ra sự kiện trạng thái để UI hiển thị "đang tra cứu…".
+ *
+ * runTool: nhận (name, input) -> trả chuỗi nội dung tool_result.
+ * describe: mô tả ngắn truy vấn để hiển thị cho người dùng.
+ */
+export async function* streamClaudeAgent(
+  env: Env,
+  system: string,
+  messages: ChatMessage[],
+  tools: ToolDef[],
+  runTool: (name: string, input: Record<string, unknown>) => Promise<string>,
+  describe: (name: string, input: Record<string, unknown>) => string,
+  maxRounds = 6,
+): AsyncGenerator<AgentEvent> {
+  const { url, headers } = resolveEndpoint(env);
+  // Bản làm việc của hội thoại theo định dạng block của Anthropic.
+  const convo: Array<{ role: string; content: unknown }> = messages.map((m) => ({
+    role: m.role,
+    content: m.content,
+  }));
+
+  for (let round = 0; round < maxRounds; round++) {
+    const res = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        model: env.DEFAULT_MODEL,
+        max_tokens: 2048,
+        system,
+        messages: convo,
+        tools,
+        stream: true,
+      }),
+    });
+    if (!res.ok || !res.body) {
+      const detail = await res.text().catch(() => "");
+      throw new Error(`Claude API lỗi ${res.status}: ${detail}`);
+    }
+
+    const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+    let buffer = "";
+    const blocks: Record<number, StreamBlock> = {};
+    const order: number[] = [];
+    let stopReason = "";
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += value;
+      let nl: number;
+      while ((nl = buffer.indexOf("\n")) !== -1) {
+        const line = buffer.slice(0, nl).trim();
+        buffer = buffer.slice(nl + 1);
+        if (!line.startsWith("data:")) continue;
+        let ev: {
+          type?: string;
+          index?: number;
+          content_block?: { type?: string; id?: string; name?: string };
+          delta?: { type?: string; text?: string; partial_json?: string; stop_reason?: string };
+        };
+        try {
+          ev = JSON.parse(line.slice(5).trim());
+        } catch {
+          continue;
+        }
+        if (ev.type === "content_block_start" && ev.index != null) {
+          const cb = ev.content_block || {};
+          blocks[ev.index] =
+            cb.type === "tool_use"
+              ? { type: "tool_use", id: cb.id, name: cb.name, json: "" }
+              : { type: "text", text: "" };
+          order.push(ev.index);
+        } else if (ev.type === "content_block_delta" && ev.index != null) {
+          const b = blocks[ev.index];
+          if (!b) continue;
+          if (ev.delta?.type === "text_delta" && ev.delta.text) {
+            b.text = (b.text || "") + ev.delta.text;
+            yield { type: "text", text: ev.delta.text };
+          } else if (ev.delta?.type === "input_json_delta") {
+            b.json = (b.json || "") + (ev.delta.partial_json || "");
+          }
+        } else if (ev.type === "message_delta" && ev.delta?.stop_reason) {
+          stopReason = ev.delta.stop_reason;
+        }
+      }
+    }
+
+    // Dựng nội dung lượt assistant + gom các tool_use.
+    const assistantContent: unknown[] = [];
+    const toolUses: Array<{ id: string; name: string; input: Record<string, unknown> }> = [];
+    for (const idx of order) {
+      const b = blocks[idx];
+      if (b.type === "text" && b.text) {
+        assistantContent.push({ type: "text", text: b.text });
+      } else if (b.type === "tool_use" && b.id && b.name) {
+        let input: Record<string, unknown> = {};
+        try {
+          input = b.json ? JSON.parse(b.json) : {};
+        } catch {
+          input = {};
+        }
+        assistantContent.push({ type: "tool_use", id: b.id, name: b.name, input });
+        toolUses.push({ id: b.id, name: b.name, input });
+      }
+    }
+
+    // Không còn yêu cầu tool -> câu trả lời cuối đã stream xong.
+    if (stopReason !== "tool_use" || toolUses.length === 0) return;
+
+    convo.push({ role: "assistant", content: assistantContent });
+
+    // Thực thi từng tool, trả tool_result lại cho Claude.
+    const results: unknown[] = [];
+    for (const tu of toolUses) {
+      const summary = describe(tu.name, tu.input);
+      yield { type: "tool", name: tu.name, phase: "start", summary };
+      try {
+        const out = await runTool(tu.name, tu.input);
+        results.push({ type: "tool_result", tool_use_id: tu.id, content: out });
+        yield { type: "tool", name: tu.name, phase: "done", summary };
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "lỗi không xác định";
+        results.push({ type: "tool_result", tool_use_id: tu.id, content: `Lỗi: ${msg}`, is_error: true });
+        yield { type: "tool", name: tu.name, phase: "error", summary: msg };
+      }
+    }
+    convo.push({ role: "user", content: results });
+  }
+
+  yield { type: "text", text: "\n\n_(Đã đạt giới hạn số bước tra cứu, dừng để tránh vòng lặp.)_" };
 }

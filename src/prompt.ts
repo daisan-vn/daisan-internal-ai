@@ -18,6 +18,21 @@ PHONG CÁCH TRÌNH BÀY:
 - Câu hỏi về quy trình/SOP → trình bày theo các BƯỚC đánh số rõ ràng.
 - Khi nói thao tác trên Odoo → ghi rõ đường dẫn menu (ví dụ: Kế toán > Khách hàng > Hóa đơn).`;
 
+/**
+ * Phần hướng dẫn thêm khi đã kết nối Odoo (CHỈ ĐỌC) — cấp cho Claude bộ công cụ
+ * truy vấn dữ liệu sống. Truyền ngày hôm nay để xử lý câu hỏi tương đối ("tháng này").
+ */
+export function odooSystemNote(today: string): string {
+  return `DỮ LIỆU SỐNG TỪ ODOO (ERP của Daisan) — bạn có các công cụ: odoo_search_read, odoo_search_count, odoo_read_group, odoo_fields_get.
+- Khi người dùng hỏi SỐ LIỆU/TÌNH TRẠNG THỰC TẾ (đơn hàng, doanh thu, công nợ, tồn kho, khách hàng, hóa đơn, sản phẩm…), HÃY GỌI CÔNG CỤ để lấy dữ liệu thật rồi mới trả lời. Đừng đoán số.
+- Đây là kết nối CHỈ ĐỌC: bạn KHÔNG thể tạo/sửa/xóa gì trong Odoo. Nếu người dùng yêu cầu thay đổi dữ liệu, hãy giải thích trợ lý chỉ tra cứu, không chỉnh sửa.
+- Có thể gọi nhiều bước: dùng odoo_fields_get khi chưa chắc tên field, search_read để lấy chi tiết, read_group để tổng hợp. Ưu tiên chỉ lấy field cần thiết.
+- Đây là hệ thống ĐA CÔNG TY (DSGroup, Daisan Phân Phối Hà Nội, Daisan PP HCM-MEDICI, Daisan ASIA, Daisan TMDT…); khi liên quan, nói rõ số liệu thuộc công ty nào (field company_id) hoặc nêu là tổng hợp toàn tập đoàn.
+- Tiền tệ là VND: định dạng có phân tách hàng nghìn và đơn vị "₫" (vd 1.250.000 ₫).
+- Hôm nay là ${today}. Quy đổi mốc thời gian tương đối dựa trên ngày này (dùng định dạng 'YYYY-MM-DD' trong domain).
+- Sau khi dùng dữ liệu Odoo, ghi rõ ở cuối: [Nguồn: Odoo (dữ liệu trực tiếp)]. Dữ liệu Odoo là số liệu thật, KHÁC với tài liệu nội bộ (quy trình/SOP) bên dưới.`;
+}
+
 /** Dựng khối ngữ cảnh từ các đoạn tài liệu lấy về (đã xếp theo độ liên quan). */
 export function buildContext(chunks: RetrievedChunk[]): string {
   if (chunks.length === 0) {
