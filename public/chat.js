@@ -187,9 +187,7 @@ function addActions(bubble) {
     span.textContent = on ? "Sửa" : "Xong"; span.dataset.label = on ? "Sửa" : "Xong";
     if (!on) bubble.focus();
   });
-  mk("Email", "✉️", () => {
-    window.location.href = `mailto:?subject=${encodeURIComponent("Trợ lý AI nội bộ Daisan")}&body=${encodeURIComponent(text())}`;
-  });
+  mk("Gmail", "📧", () => openGmail(bubble));
   mk("Chia sẻ", "🔗", async (b) => {
     const t = text();
     if (navigator.share) { try { await navigator.share({ title: "Trợ lý AI nội bộ Daisan", text: t }); } catch {} }
@@ -305,6 +303,19 @@ function exportSlug(s) {
 }
 function exportName(question, ext) {
   return `Daisan-AI_${exportSlug(question)}_${new Date().toISOString().slice(0, 10)}.${ext}`;
+}
+
+/* Mở cửa sổ soạn thư Gmail, điền sẵn tiêu đề + nội dung câu trả lời + nguồn. */
+function openGmail(bubble) {
+  const { question, md, sources } = exportMeta(bubble);
+  const subject = "[Trợ lý AI Daisan] " + question;
+  let body = (md || "").trim();
+  if (body.length > 1800) body = body.slice(0, 1800) + "\n\n… (rút gọn — xem đầy đủ trong Trợ lý AI Daisan)";
+  if (sources && sources.length) body += "\n\n— Nguồn: " + sources.join(" • ");
+  body += "\n\n(Gửi từ Trợ lý AI nội bộ Daisan)";
+  const url = "https://mail.google.com/mail/?view=cm&fs=1&su=" +
+    encodeURIComponent(subject) + "&body=" + encodeURIComponent(body);
+  window.open(url, "_blank", "noopener");
 }
 
 function addExportControl(bar, bubble) {
