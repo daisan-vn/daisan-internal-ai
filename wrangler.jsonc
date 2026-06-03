@@ -47,7 +47,7 @@
     // --- Google Drive sync (CHỈ ĐỌC) — xem src/gdrive.ts ---
     // ID thư mục Drive cần đồng bộ (lấy từ URL thư mục; nhiều thì cách nhau dấu phẩy).
     // Khóa service account đặt riêng: wrangler secret put GDRIVE_SA_JSON
-    "GDRIVE_FOLDER_ID": ""
+    "GDRIVE_FOLDER_ID": "19VjUs1ILWpbtjbKbNzROCyZwrkkespUj"
   },
 
   // Cron: tự động đồng bộ Google Drive mỗi ngày lúc 02:00 giờ VN (19:00 UTC).
