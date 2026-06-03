@@ -3,20 +3,150 @@ const form = document.getElementById("form");
 const input = document.getElementById("input");
 const sendBtn = document.getElementById("send");
 const domainSel = document.getElementById("domain");
+const newChatBtn = document.getElementById("newChat");
+const menuBtn = document.getElementById("menuBtn");
+const sidebar = document.getElementById("sidebar");
+const backdrop = document.getElementById("backdrop");
+const convListEl = document.getElementById("convList");
+const userEmailEl = document.getElementById("userEmail");
 
-// Lịch sử hội thoại gửi kèm mỗi request (Phase 1: chỉ giữ ở client).
+// Lịch sử lượt chat (gửi kèm mỗi request làm ngữ cảnh cho Claude).
 const history = [];
+// Cuộc trò chuyện hiện tại (null = chưa lưu / chat mới).
+let conversationId = null;
 
-function addMessage(role, text) {
+const EXAMPLES = [
+  "Cách tạo hóa đơn bán hàng cho khách trong Odoo?",
+  "Quy trình nhập kho gồm những bước nào?",
+  "Cách tra cứu công nợ phải thu của khách hàng?",
+  "SOP duyệt đơn mua hàng ở Daisan?",
+];
+
+/* ---------------- Markdown render (escape trước → an toàn XSS) ---------------- */
+function escapeHtml(s) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+function inlineMd(s) {
+  return s
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*([^*\n]+?)\*/g, "<em>$1</em>")
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g,
+      '<a href="$2" target="_blank" rel="noopener">$1</a>');
+}
+function splitRow(line) {
+  return line.replace(/^\s*\|?/, "").replace(/\|?\s*$/, "").split("|").map((c) => c.trim());
+}
+function renderMarkdown(md) {
+  const lines = escapeHtml(md).replace(/\r\n/g, "\n").split("\n");
+  let html = "";
+  let i = 0;
+  const isBlockStart = (l) =>
+    /^(#{1,6}\s|```|>\s?|\s*[-*+]\s|\s*\d+\.\s)/.test(l) || /^(\-{3,}|\*{3,}|_{3,})\s*$/.test(l);
+
+  while (i < lines.length) {
+    const line = lines[i];
+    if (/^```/.test(line)) {
+      const buf = []; i++;
+      while (i < lines.length && !/^```/.test(lines[i])) buf.push(lines[i++]);
+      i++;
+      html += `<pre><code>${buf.join("\n")}</code></pre>`;
+      continue;
+    }
+    if (/^\s*$/.test(line)) { i++; continue; }
+    let m = line.match(/^(#{1,6})\s+(.*)$/);
+    if (m) { const lvl = Math.min(m[1].length + 2, 6); html += `<h${lvl}>${inlineMd(m[2])}</h${lvl}>`; i++; continue; }
+    if (/^(\-{3,}|\*{3,}|_{3,})\s*$/.test(line)) { html += "<hr>"; i++; continue; }
+    if (line.includes("|") && i + 1 < lines.length &&
+        /^\s*\|?[\s:|-]*-[\s:|-]*\|?\s*$/.test(lines[i + 1])) {
+      const head = splitRow(line); i += 2;
+      let rows = "";
+      while (i < lines.length && lines[i].includes("|") && !/^\s*$/.test(lines[i])) {
+        rows += "<tr>" + splitRow(lines[i]).map((c) => `<td>${inlineMd(c)}</td>`).join("") + "</tr>"; i++;
+      }
+      html += `<table><thead><tr>${head.map((c) => `<th>${inlineMd(c)}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table>`;
+      continue;
+    }
+    if (/^>\s?/.test(line)) {
+      const buf = [];
+      while (i < lines.length && /^>\s?/.test(lines[i])) buf.push(lines[i++].replace(/^>\s?/, ""));
+      html += `<blockquote>${inlineMd(buf.join("<br>"))}</blockquote>`;
+      continue;
+    }
+    if (/^\s*[-*+]\s+/.test(line)) {
+      let items = "";
+      while (i < lines.length && /^\s*[-*+]\s+/.test(lines[i]))
+        items += `<li>${inlineMd(lines[i++].replace(/^\s*[-*+]\s+/, ""))}</li>`;
+      html += `<ul>${items}</ul>`;
+      continue;
+    }
+    if (/^\s*\d+\.\s+/.test(line)) {
+      let items = "";
+      while (i < lines.length && /^\s*\d+\.\s+/.test(lines[i]))
+        items += `<li>${inlineMd(lines[i++].replace(/^\s*\d+\.\s+/, ""))}</li>`;
+      html += `<ol>${items}</ol>`;
+      continue;
+    }
+    const buf = [line]; i++;
+    while (i < lines.length && !/^\s*$/.test(lines[i]) && !isBlockStart(lines[i])) buf.push(lines[i++]);
+    html += `<p>${inlineMd(buf.join("<br>"))}</p>`;
+  }
+  return html;
+}
+
+/* ---------------- Tiện ích & màn hình chào ---------------- */
+function scrollBottom() { messagesEl.scrollTop = messagesEl.scrollHeight; }
+function clearEmpty() { const e = messagesEl.querySelector(".empty"); if (e) e.remove(); }
+function renderEmpty() {
+  messagesEl.innerHTML = "";
   const wrap = document.createElement("div");
-  wrap.className = `msg ${role}`;
+  wrap.className = "empty";
+  wrap.innerHTML =
+    '<div class="empty-logo">✦</div>' +
+    "<h2>Chào mừng đến Trợ lý AI nội bộ Daisan</h2>" +
+    "<p>Hỏi về Odoo, kế toán, SOP, CRM, mua hàng, kho — mình trả lời dựa trên tài liệu nội bộ và luôn kèm nguồn.</p>" +
+    '<div class="examples"></div>';
+  const ex = wrap.querySelector(".examples");
+  EXAMPLES.forEach((q) => {
+    const c = document.createElement("button");
+    c.className = "example"; c.type = "button"; c.textContent = q;
+    c.addEventListener("click", () => { input.value = q; form.requestSubmit(); });
+    ex.appendChild(c);
+  });
+  messagesEl.appendChild(wrap);
+}
+
+/* ---------------- Khung tin nhắn ---------------- */
+function addMessage(role, text) {
+  clearEmpty();
+  const turn = document.createElement("div");
+  turn.className = `turn ${role}`;
+  if (role === "assistant") {
+    const av = document.createElement("div");
+    av.className = "avatar"; av.textContent = "✦";
+    turn.appendChild(av);
+  }
+  const content = document.createElement("div");
+  content.className = "content";
   const bubble = document.createElement("div");
   bubble.className = "bubble";
   bubble.textContent = text;
-  wrap.appendChild(bubble);
-  messagesEl.appendChild(wrap);
-  messagesEl.scrollTop = messagesEl.scrollHeight;
+  content.appendChild(bubble);
+  turn.appendChild(content);
+  messagesEl.appendChild(turn);
+  scrollBottom();
   return bubble;
+}
+
+// Render 1 lượt đã hoàn chỉnh (dùng khi nạp lịch sử).
+function renderFinal(role, content, sources) {
+  const bubble = addMessage(role, content);
+  if (role === "assistant") {
+    bubble.classList.add("md");
+    bubble.innerHTML = renderMarkdown(content);
+    renderSources(bubble, sources);
+    addActions(bubble);
+  }
 }
 
 function renderSources(bubble, sources) {
@@ -32,6 +162,111 @@ function renderSources(bubble, sources) {
   bubble.parentElement.appendChild(box);
 }
 
+/* ---------------- Thanh nút: Copy / Sửa / Email / Chia sẻ ---------------- */
+function flash(btn, msg) {
+  const span = btn.querySelector("span");
+  const old = span.dataset.label;
+  span.textContent = msg;
+  btn.classList.add("done");
+  setTimeout(() => { span.textContent = old; btn.classList.remove("done"); }, 1400);
+}
+function addActions(bubble) {
+  const bar = document.createElement("div");
+  bar.className = "actions";
+  const text = () => bubble.innerText.trim();
+  const mk = (label, icon, fn) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.innerHTML = `${icon}<span data-label="${label}">${label}</span>`;
+    b.addEventListener("click", () => fn(b));
+    bar.appendChild(b);
+  };
+  mk("Copy", "📋", async (b) => {
+    try { await navigator.clipboard.writeText(text()); flash(b, "Đã copy ✓"); } catch { flash(b, "Lỗi copy"); }
+  });
+  mk("Sửa", "✏️", (b) => {
+    const span = b.querySelector("span");
+    const on = bubble.getAttribute("contenteditable") === "true";
+    bubble.setAttribute("contenteditable", on ? "false" : "true");
+    bubble.classList.toggle("editing", !on);
+    span.textContent = on ? "Sửa" : "Xong";
+    span.dataset.label = on ? "Sửa" : "Xong";
+    if (!on) bubble.focus();
+  });
+  mk("Email", "✉️", () => {
+    window.location.href = `mailto:?subject=${encodeURIComponent("Trợ lý AI nội bộ Daisan")}&body=${encodeURIComponent(text())}`;
+  });
+  mk("Chia sẻ", "🔗", async (b) => {
+    const t = text();
+    if (navigator.share) { try { await navigator.share({ title: "Trợ lý AI nội bộ Daisan", text: t }); } catch {} }
+    else { try { await navigator.clipboard.writeText(t); flash(b, "Đã copy để chia sẻ ✓"); } catch {} }
+  });
+  bubble.parentElement.appendChild(bar);
+}
+
+/* ---------------- Lịch sử hội thoại (sidebar) ---------------- */
+function markActive() {
+  convListEl.querySelectorAll(".conv-item").forEach((el) =>
+    el.classList.toggle("active", el.dataset.id === conversationId));
+}
+async function loadConversations() {
+  try {
+    const res = await fetch("/api/conversations");
+    if (!res.ok) return;
+    const { conversations } = await res.json();
+    convListEl.innerHTML = "";
+    if (!conversations.length) {
+      convListEl.innerHTML = '<p class="conv-empty">Chưa có cuộc trò chuyện nào.</p>';
+      return;
+    }
+    for (const c of conversations) {
+      const item = document.createElement("div");
+      item.className = "conv-item"; item.dataset.id = c.id;
+      const title = document.createElement("span");
+      title.className = "conv-title"; title.textContent = c.title;
+      const del = document.createElement("button");
+      del.className = "conv-del"; del.type = "button"; del.textContent = "✕"; del.title = "Xóa";
+      del.addEventListener("click", (e) => deleteConv(c.id, e));
+      item.appendChild(title); item.appendChild(del);
+      item.addEventListener("click", () => loadConversation(c.id));
+      convListEl.appendChild(item);
+    }
+    markActive();
+  } catch {}
+}
+async function loadConversation(id) {
+  try {
+    const res = await fetch(`/api/conversations/${id}`);
+    if (!res.ok) return;
+    const conv = await res.json();
+    conversationId = conv.id;
+    history.length = 0;
+    messagesEl.innerHTML = "";
+    for (const m of conv.messages) {
+      history.push({ role: m.role, content: m.content });
+      renderFinal(m.role, m.content, m.sources);
+    }
+    markActive();
+    closeSidebar();
+    scrollBottom();
+  } catch {}
+}
+async function deleteConv(id, ev) {
+  ev.stopPropagation();
+  if (!confirm("Xóa cuộc trò chuyện này?")) return;
+  try { await fetch(`/api/conversations/${id}`, { method: "DELETE" }); } catch {}
+  if (id === conversationId) { conversationId = null; history.length = 0; renderEmpty(); }
+  loadConversations();
+}
+async function loadMe() {
+  try {
+    const res = await fetch("/api/me");
+    const { email } = await res.json();
+    if (email && email !== "dev@local") userEmailEl.textContent = email;
+  } catch {}
+}
+
+/* ---------------- Gọi API chat ---------------- */
 async function ask(question) {
   history.push({ role: "user", content: question });
   addMessage("user", question);
@@ -45,7 +280,7 @@ async function ask(question) {
     const res = await fetch("/api/chat", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ messages: history, domain: domainSel.value || undefined }),
+      body: JSON.stringify({ messages: history, domain: domainSel.value || undefined, conversationId }),
     });
     if (!res.ok || !res.body) throw new Error("Không kết nối được máy chủ");
 
@@ -65,12 +300,17 @@ async function ask(question) {
           bubble.classList.remove("typing");
           answer += event.text;
           bubble.textContent = answer;
-          messagesEl.scrollTop = messagesEl.scrollHeight;
+          scrollBottom();
         } else if (event.error) {
           bubble.classList.remove("typing");
           bubble.textContent = `⚠️ ${event.error}`;
         } else if (event.done) {
+          if (answer) { bubble.classList.add("md"); bubble.innerHTML = renderMarkdown(answer); }
           renderSources(bubble, event.sources);
+          if (answer) addActions(bubble);
+          if (event.conversationId) conversationId = event.conversationId;
+          loadConversations();
+          scrollBottom();
         }
       }
     }
@@ -81,27 +321,35 @@ async function ask(question) {
   }
 }
 
+/* ---------------- Sự kiện ---------------- */
 form.addEventListener("submit", (e) => {
   e.preventDefault();
   const q = input.value.trim();
   if (!q) return;
-  input.value = "";
-  input.style.height = "auto";
+  input.value = ""; input.style.height = "auto";
   sendBtn.disabled = true;
-  ask(q).finally(() => {
-    sendBtn.disabled = false;
-    input.focus();
-  });
+  closeSidebar();
+  ask(q).finally(() => { sendBtn.disabled = false; input.focus(); });
 });
-
-// Enter để gửi, Shift+Enter xuống dòng. Tự co giãn ô nhập.
 input.addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && !e.shiftKey) {
-    e.preventDefault();
-    form.requestSubmit();
-  }
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); }
 });
 input.addEventListener("input", () => {
   input.style.height = "auto";
   input.style.height = `${input.scrollHeight}px`;
 });
+newChatBtn.addEventListener("click", () => {
+  conversationId = null; history.length = 0;
+  renderEmpty(); markActive(); closeSidebar(); input.focus();
+});
+
+function openSidebar() { sidebar.classList.add("open"); backdrop.classList.add("show"); }
+function closeSidebar() { sidebar.classList.remove("open"); backdrop.classList.remove("show"); }
+menuBtn.addEventListener("click", openSidebar);
+backdrop.addEventListener("click", closeSidebar);
+
+/* ---------------- Khởi động ---------------- */
+renderEmpty();
+loadMe();
+loadConversations();
+input.focus();

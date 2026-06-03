@@ -4,6 +4,8 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "daisan-internal-ai",
   "main": "src/index.ts",
+  // Tắt URL *.workers.dev — chỉ cho truy cập qua troly.daisan.ai (đã bọc Cloudflare Access).
+  "workers_dev": false,
   "compatibility_date": "2025-01-01",
   "compatibility_flags": ["nodejs_compat"],
 
@@ -22,22 +24,30 @@
     // Tên AutoRAG instance đã tạo trong dashboard (AI > AI Search).
     "AUTORAG_NAME": "daisan-internal-ai",
     // AI Gateway dùng chung của Daisan để route Claude (billing/analytics gộp).
-    "CF_ACCOUNT_ID": "REPLACE_WITH_ACCOUNT_ID",
+    "CF_ACCOUNT_ID": "4916931057954a4b6187316d83b4a5f2",
     "AI_GATEWAY_NAME": "daisan-gw",
     // Model Claude mặc định (điều chỉnh theo model bạn được cấp).
     "DEFAULT_MODEL": "claude-sonnet-4-6",
     // Số đoạn tài liệu lấy về mỗi truy vấn.
     "RAG_TOP_K": "8",
     // Ngưỡng điểm tương đồng tối thiểu (0-1) để giữ đoạn tài liệu.
-    "RAG_SCORE_THRESHOLD": "0.3"
+    // 0.2: ưu tiên recall cho tiếng Việt (bge-m3 điểm thường thấp). Tăng dần nếu nhiễu.
+    "RAG_SCORE_THRESHOLD": "0.2"
   },
+
+  // Custom domain để nhân viên truy cập; sẽ bọc Cloudflare Access (chỉ email @daisan).
+  "routes": [{ "pattern": "troly.daisan.ai", "custom_domain": true }],
 
   "observability": {
     "enabled": true
-  }
+  },
 
-  // --- Phase 2: lịch sử chat + phản hồi 👍/👎 ---
-  // "d1_databases": [
-  //   { "binding": "DB", "database_name": "daisan-internal-ai", "database_id": "..." }
-  // ]
+  // Phase 2: lịch sử chat theo từng người (user_email lấy từ Cloudflare Access).
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "daisan-internal-ai",
+      "database_id": "c6c9dedc-53dc-4153-8d4c-95b52a703e8a"
+    }
+  ]
 }

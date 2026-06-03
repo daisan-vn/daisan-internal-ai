@@ -23,15 +23,31 @@ export async function retrieve(
   };
 
   // Lọc theo phòng ban: tài liệu trong R2 đặt dưới /ketoan, /sop, /crm ...
+  // AutoRAG yêu cầu filter bọc trong compound and/or + mảng các so sánh,
+  // không nhận comparison trần (sẽ lỗi vectorize_filter_not_serializable).
   if (domain) {
     options.filters = {
-      type: "eq",
-      key: "folder",
-      value: `${domain}/`,
+      type: "and",
+      filters: [{ type: "eq", key: "folder", value: `${domain}/` }],
     };
   }
 
-  const result = await env.AI.autorag(env.AUTORAG_NAME).search(options as never);
+  // Lọc metadata qua binding hiện chưa ổn định (wrangler 3.x: lỗi
+  // vectorize_filter_not_serializable). Nếu lọc lỗi thì truy hồi lại KHÔNG lọc
+  // để không chặn câu trả lời — sẽ bỏ fallback khi nâng wrangler v4.
+  const ar = env.AI.autorag(env.AUTORAG_NAME);
+  let result: Awaited<ReturnType<typeof ar.search>>;
+  try {
+    result = await ar.search(options as never);
+  } catch (err) {
+    if (options.filters) {
+      console.warn(`Lọc domain '${domain}' lỗi, truy hồi không lọc:`, err);
+      delete options.filters;
+      result = await ar.search(options as never);
+    } else {
+      throw err;
+    }
+  }
 
   // Gộp các đoạn (chunk) theo từng tài liệu, giữ score cao nhất để hiển thị.
   const chunks: RetrievedChunk[] = [];

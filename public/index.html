@@ -7,49 +7,78 @@
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <div class="app">
-      <header class="header">
-        <div class="brand">
-          <span class="logo">🟦</span>
-          <div>
-            <h1>Trợ lý AI nội bộ</h1>
-            <p>Daisan Group · Odoo · Kế toán · SOP · Kinh doanh · CRM · Mua · Kho</p>
+    <div class="layout">
+      <!-- Sidebar -->
+      <aside class="sidebar" id="sidebar">
+        <div class="side-top">
+          <div class="brand">
+            <span class="brand-logo">✦</span>
+            <span class="brand-name">Trợ lý Daisan</span>
+          </div>
+          <button class="new-chat" id="newChat">
+            <span>＋</span> Trò chuyện mới
+          </button>
+        </div>
+
+        <div class="conv-section">
+          <div class="conv-head">Lịch sử trò chuyện</div>
+          <div class="conv-list" id="convList"></div>
+        </div>
+
+        <div class="side-foot">
+          <label class="field field-compact">
+            <span class="field-label">Phòng ban</span>
+            <select id="domain">
+              <option value="">Tất cả</option>
+              <option value="odoo">Odoo</option>
+              <option value="ketoan">Kế toán</option>
+              <option value="sop">SOP / Quy trình</option>
+              <option value="crm">CRM / Kinh doanh</option>
+              <option value="mua">Mua hàng</option>
+              <option value="kho">Kho</option>
+            </select>
+          </label>
+          <div class="org">
+            <span class="org-logo">🟦</span>
+            <div class="org-text">
+              <strong>Daisan Group</strong>
+              <small id="userEmail">🔒 Nội bộ</small>
+            </div>
           </div>
         </div>
-        <label class="domain">
-          Phòng ban
-          <select id="domain">
-            <option value="">Tất cả</option>
-            <option value="odoo">Odoo</option>
-            <option value="ketoan">Kế toán</option>
-            <option value="sop">SOP / Quy trình</option>
-            <option value="crm">CRM / Kinh doanh</option>
-            <option value="mua">Mua hàng</option>
-            <option value="kho">Kho</option>
-          </select>
-        </label>
-      </header>
+      </aside>
 
-      <main id="messages" class="messages">
-        <div class="msg assistant">
-          <div class="bubble">
-            Chào bạn 👋 Mình là trợ lý nội bộ Daisan. Hỏi mình về quy trình Odoo,
-            kế toán, SOP, CRM, mua hàng, kho… Mình chỉ trả lời dựa trên tài liệu
-            nội bộ và luôn ghi rõ nguồn.
+      <!-- Main -->
+      <div class="main">
+        <header class="topbar">
+          <button class="icon-btn" id="menuBtn" aria-label="Menu">☰</button>
+          <div class="topbar-title">
+            <span>Trợ lý AI nội bộ</span>
+            <small>Claude Sonnet 4.6</small>
           </div>
-        </div>
-      </main>
+          <span class="topbar-badge">🔒 Chỉ nội bộ</span>
+        </header>
 
-      <form id="form" class="composer">
-        <textarea
-          id="input"
-          rows="1"
-          placeholder="Nhập câu hỏi… (Enter để gửi, Shift+Enter xuống dòng)"
-          autocomplete="off"
-        ></textarea>
-        <button id="send" type="submit">Gửi</button>
-      </form>
+        <div class="chat" id="messages"></div>
+
+        <div class="composer-wrap">
+          <form id="form" class="composer">
+            <textarea
+              id="input"
+              rows="1"
+              placeholder="Hỏi về Odoo, kế toán, SOP, kho… (Enter để gửi)"
+              autocomplete="off"
+            ></textarea>
+            <button id="send" type="submit" class="send-btn" aria-label="Gửi">↑</button>
+          </form>
+          <p class="disclaimer">
+            Trợ lý chỉ trả lời dựa trên tài liệu nội bộ Daisan và luôn ghi rõ nguồn.
+          </p>
+        </div>
+      </div>
     </div>
+
+    <div class="backdrop" id="backdrop"></div>
     <script src="/chat.js"></script>
   </body>
 </html>

@@ -1,8 +1,31 @@
 import type { ChatMessage, Env } from "./types";
 
-/** Endpoint Claude qua AI Gateway daisan-gw (billing/analytics gộp một chỗ). */
-function gatewayUrl(env: Env): string {
-  return `https://gateway.ai.cloudflare.com/v1/${env.CF_ACCOUNT_ID}/${env.AI_GATEWAY_NAME}/anthropic/v1/messages`;
+const ANTHROPIC_DIRECT = "https://api.anthropic.com/v1/messages";
+
+/**
+ * Chọn endpoint gọi Claude.
+ *  - MẶC ĐỊNH: qua AI Gateway daisan-gw. Gọi THẲNG Anthropic từ edge Cloudflare
+ *    bị chặn 403 "Request not allowed", nên production buộc đi qua gateway.
+ *  - LOCAL DEV: đặt ANTHROPIC_DIRECT=true trong .dev.vars để gọi thẳng Anthropic
+ *    (IP máy dev được Anthropic cho phép) — tiện test khi chưa dựng gateway.
+ *  - AI_GATEWAY_TOKEN: thêm vào khi daisan-gw bật Authenticated Gateway.
+ */
+function resolveEndpoint(env: Env): { url: string; headers: Record<string, string> } {
+  const headers: Record<string, string> = {
+    "content-type": "application/json",
+    "x-api-key": env.ANTHROPIC_API_KEY,
+    "anthropic-version": "2023-06-01",
+  };
+  if (env.ANTHROPIC_DIRECT?.trim() === "true") {
+    return { url: ANTHROPIC_DIRECT, headers };
+  }
+  if (env.AI_GATEWAY_TOKEN) {
+    headers["cf-aig-authorization"] = `Bearer ${env.AI_GATEWAY_TOKEN}`;
+  }
+  return {
+    url: `https://gateway.ai.cloudflare.com/v1/${env.CF_ACCOUNT_ID}/${env.AI_GATEWAY_NAME}/anthropic/v1/messages`,
+    headers,
+  };
 }
 
 /**
@@ -14,16 +37,9 @@ export async function* streamClaude(
   system: string,
   messages: ChatMessage[],
 ): AsyncGenerator<string> {
-  const headers: Record<string, string> = {
-    "content-type": "application/json",
-    "x-api-key": env.ANTHROPIC_API_KEY,
-    "anthropic-version": "2023-06-01",
-  };
-  if (env.AI_GATEWAY_TOKEN) {
-    headers["cf-aig-authorization"] = `Bearer ${env.AI_GATEWAY_TOKEN}`;
-  }
+  const { url, headers } = resolveEndpoint(env);
 
-  const res = await fetch(gatewayUrl(env), {
+  const res = await fetch(url, {
     method: "POST",
     headers,
     body: JSON.stringify({
