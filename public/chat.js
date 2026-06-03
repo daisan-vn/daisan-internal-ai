@@ -138,6 +138,7 @@ function renderFinal(role, content, sources) {
   if (role === "assistant") {
     bubble.classList.add("md");
     bubble.innerHTML = renderMarkdown(content);
+    bubble.__md = content; bubble.__sources = sources || [];
     renderSources(bubble, sources);
     addActions(bubble);
   }
@@ -194,7 +195,143 @@ function addActions(bubble) {
     if (navigator.share) { try { await navigator.share({ title: "Trợ lý AI nội bộ Daisan", text: t }); } catch {} }
     else { try { await navigator.clipboard.writeText(t); flash(b, "Đã copy để chia sẻ ✓"); } catch {} }
   });
+  addExportControl(bar, bubble);
   bubble.parentElement.appendChild(bar);
+}
+
+/* ---------------- Xuất tài liệu (Word / PDF / Excel / Markdown) ---------------- */
+const DOC_CSS = `
+* { box-sizing: border-box; }
+body { font-family: "Segoe UI", Roboto, Arial, sans-serif; color: #1a1a1a; line-height: 1.6; max-width: 820px; margin: 0 auto; padding: 30px 36px; }
+.doc-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #4f46e5; padding-bottom: 12px; }
+.doc-brand { font-weight: 700; color: #4f46e5; font-size: 15px; }
+.doc-date { font-size: 12px; color: #666; }
+h1.doc-q { font-size: 19px; margin: 20px 0 6px; color: #111; }
+.doc-body { font-size: 14px; }
+.doc-body h1, .doc-body h2, .doc-body h3, .doc-body h4, .doc-body h5, .doc-body h6 { margin: 16px 0 6px; line-height: 1.3; }
+.doc-body h3 { font-size: 16px; } .doc-body h4 { font-size: 14.5px; }
+.doc-body p { margin: 9px 0; }
+.doc-body ul, .doc-body ol { margin: 9px 0; padding-left: 24px; }
+.doc-body li { margin: 4px 0; }
+.doc-body table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 13px; }
+.doc-body th, .doc-body td { border: 1px solid #ccc; padding: 7px 10px; text-align: left; }
+.doc-body th { background: #f3f4f6; font-weight: 600; }
+.doc-body code { background: #f3f4f6; padding: 1px 5px; border-radius: 4px; font-family: Consolas, monospace; font-size: 0.9em; }
+.doc-body pre { background: #f6f8fa; border: 1px solid #e1e4e8; border-radius: 8px; padding: 12px; overflow: auto; }
+.doc-body pre code { background: none; padding: 0; }
+.doc-body blockquote { border-left: 3px solid #4f46e5; background: #f5f3ff; margin: 10px 0; padding: 8px 14px; color: #333; }
+.doc-body a { color: #4f46e5; }
+.doc-sources { margin-top: 22px; padding-top: 10px; border-top: 1px solid #e5e7eb; font-size: 12px; color: #555; }
+.doc-foot { margin-top: 26px; font-size: 11px; color: #999; text-align: center; }
+@page { margin: 1.6cm; }
+@media print { body { padding: 0; max-width: none; } }
+`;
+
+function exportMeta(bubble) {
+  const turn = bubble.closest(".turn");
+  const prev = turn ? turn.previousElementSibling : null;
+  const q = prev && prev.classList.contains("user") ? (prev.querySelector(".bubble")?.innerText || "").trim() : "";
+  return {
+    question: q || "Câu trả lời từ Trợ lý AI Daisan",
+    md: bubble.__md != null ? bubble.__md : bubble.innerText,
+    sources: bubble.__sources || [],
+    bodyHtml: bubble.innerHTML,
+  };
+}
+
+function buildDocHtml(question, bodyHtml, sources, forPrint) {
+  const when = new Date().toLocaleString("vi-VN");
+  const src = sources && sources.length
+    ? `<div class="doc-sources"><strong>Nguồn:</strong> ${sources.map(escapeHtml).join(" • ")}</div>` : "";
+  const printScript = forPrint
+    ? '<script>window.onload=function(){setTimeout(function(){window.focus();window.print();},300);};<\/script>' : "";
+  return `<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="utf-8"><title>${escapeHtml(question)}</title>
+<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom></w:WordDocument></xml><![endif]-->
+<style>${DOC_CSS}</style></head>
+<body>
+<div class="doc-header"><div class="doc-brand">✦ Trợ lý AI nội bộ — Daisan Group</div><div class="doc-date">Xuất ngày ${escapeHtml(when)}</div></div>
+<h1 class="doc-q">${escapeHtml(question)}</h1>
+<div class="doc-body">${bodyHtml}</div>
+${src}
+<div class="doc-foot">Tài liệu tạo tự động từ Trợ lý AI nội bộ Daisan • Lưu hành nội bộ</div>
+${printScript}
+</body></html>`;
+}
+
+function exportWord(bubble) {
+  const { question, bodyHtml, sources } = exportMeta(bubble);
+  const html = buildDocHtml(question, bodyHtml, sources, false);
+  downloadBlob(new Blob(["﻿", html], { type: "application/msword" }), exportName(question, "doc"));
+}
+function exportPdf(bubble) {
+  const { question, bodyHtml, sources } = exportMeta(bubble);
+  const html = buildDocHtml(question, bodyHtml, sources, true);
+  const w = window.open("", "_blank");
+  if (!w) { alert("Trình duyệt đang chặn cửa sổ in. Hãy cho phép pop-up cho trang này rồi thử lại."); return; }
+  w.document.open(); w.document.write(html); w.document.close();
+}
+function exportMarkdown(bubble) {
+  const { question, md, sources } = exportMeta(bubble);
+  const when = new Date().toLocaleString("vi-VN");
+  const srcLine = sources && sources.length ? `\n\n---\n**Nguồn:** ${sources.join(" • ")}` : "";
+  const text = `# ${question}\n\n${md}${srcLine}\n\n_Xuất từ Trợ lý AI nội bộ Daisan — ${when}_\n`;
+  downloadBlob(new Blob([text], { type: "text/markdown;charset=utf-8" }), exportName(question, "md"));
+}
+function exportCsv(bubble) {
+  const { question } = exportMeta(bubble);
+  const tables = [...bubble.querySelectorAll("table")];
+  if (!tables.length) return;
+  const csv = tables.map(tableToCsv).join("\r\n\r\n");
+  downloadBlob(new Blob(["﻿", "sep=,\r\n", csv], { type: "text/csv;charset=utf-8" }), exportName(question, "csv"));
+}
+function tableToCsv(table) {
+  return [...table.querySelectorAll("tr")]
+    .map((tr) => [...tr.querySelectorAll("th,td")].map((c) => csvCell(c.innerText)).join(","))
+    .join("\r\n");
+}
+function csvCell(s) { s = (s || "").trim().replace(/"/g, '""'); return /[",\n;]/.test(s) ? `"${s}"` : s; }
+function downloadBlob(blob, name) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+function exportSlug(s) {
+  return (s || "tai-lieu").toLowerCase()
+    .normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d")
+    .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48) || "tai-lieu";
+}
+function exportName(question, ext) {
+  return `Daisan-AI_${exportSlug(question)}_${new Date().toISOString().slice(0, 10)}.${ext}`;
+}
+
+function addExportControl(bar, bubble) {
+  const wrap = document.createElement("div");
+  wrap.className = "export-wrap";
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.innerHTML = '⬇️<span data-label="Xuất">Xuất</span><span class="caret">▾</span>';
+  const menu = document.createElement("div");
+  menu.className = "export-menu";
+  const item = (label, fn) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = label;
+    b.addEventListener("click", (e) => { e.stopPropagation(); menu.classList.remove("open"); fn(); });
+    menu.appendChild(b);
+  };
+  item("📄  Word (.doc)", () => exportWord(bubble));
+  item("🖨️  PDF (in / lưu PDF)", () => exportPdf(bubble));
+  if (bubble.querySelector("table")) item("📊  Excel (.csv)", () => exportCsv(bubble));
+  item("⬇️  Markdown (.md)", () => exportMarkdown(bubble));
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    document.querySelectorAll(".export-menu.open").forEach((m) => { if (m !== menu) m.classList.remove("open"); });
+    menu.classList.toggle("open");
+  });
+  wrap.append(btn, menu);
+  bar.appendChild(wrap);
 }
 
 /* ---------------- Lịch sử hội thoại (sidebar) ---------------- */
@@ -335,6 +472,7 @@ async function streamAnswer() {
           bubble.textContent = `⚠️ ${event.error}`;
         } else if (event.done) {
           if (answer) { bubble.innerHTML = renderMarkdown(answer); }
+          bubble.__md = answer; bubble.__sources = event.sources || [];
           renderSources(bubble, event.sources);
           if (answer) addActions(bubble);
           if (event.conversationId) conversationId = event.conversationId;
@@ -345,7 +483,7 @@ async function streamAnswer() {
     if (answer) history.push({ role: "assistant", content: answer });
   } catch (err) {
     if (err.name === "AbortError") {
-      if (answer) { bubble.innerHTML = renderMarkdown(answer); addActions(bubble); history.push({ role: "assistant", content: answer }); }
+      if (answer) { bubble.innerHTML = renderMarkdown(answer); bubble.__md = answer; bubble.__sources = []; addActions(bubble); history.push({ role: "assistant", content: answer }); }
       else { bubble.closest(".turn")?.remove(); }
     } else {
       bubble.classList.remove("typing", "md");
@@ -380,6 +518,7 @@ function openSidebar() { sidebar.classList.add("open"); backdrop.classList.add("
 function closeSidebar() { sidebar.classList.remove("open"); backdrop.classList.remove("show"); }
 menuBtn.addEventListener("click", openSidebar);
 backdrop.addEventListener("click", closeSidebar);
+document.addEventListener("click", () => document.querySelectorAll(".export-menu.open").forEach((m) => m.classList.remove("open")));
 
 /* ---------------- Khởi động ---------------- */
 renderEmpty();
