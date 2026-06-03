@@ -3,6 +3,7 @@ export interface Env {
   ASSETS: Fetcher;
   AI: Ai;
   DB: D1Database;
+  DOCS: R2Bucket;
 
   // vars
   AUTORAG_NAME: string;

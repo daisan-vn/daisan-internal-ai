@@ -49,5 +49,10 @@
       "database_name": "daisan-internal-ai",
       "database_id": "c6c9dedc-53dc-4153-8d4c-95b52a703e8a"
     }
+  ],
+
+  // Phase 2: trang admin upload tài liệu lên R2 (AutoRAG sẽ tự index).
+  "r2_buckets": [
+    { "binding": "DOCS", "bucket_name": "daisan-internal-ai-docs" }
   ]
 }

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quản trị tài liệu — Daisan AI</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <style>
+      .admin-wrap { max-width: 900px; margin: 0 auto; padding: 28px 20px; }
+      .admin-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; }
+      .admin-head h1 { font-size: 20px; margin: 0; }
+      .admin-head a { color: var(--accent); text-decoration: none; font-size: 14px; }
+      .card2 { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-bottom: 20px; }
+      .card2 h2 { font-size: 15px; margin: 0 0 14px; }
+      .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+      .drop { border: 2px dashed var(--border); border-radius: 12px; padding: 24px; text-align: center; color: var(--muted); cursor: pointer; transition: .15s; }
+      .drop:hover, .drop.over { border-color: var(--accent); background: rgba(79,140,255,.07); color: var(--text); }
+      select { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 9px 12px; font: inherit; font-size: 14px; cursor: pointer; }
+      .btn-primary { background: var(--accent); color: #fff; border: none; border-radius: 10px; padding: 9px 18px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+      .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+      table { width: 100%; border-collapse: collapse; font-size: 14px; }
+      th, td { text-align: left; padding: 10px; border-bottom: 1px solid var(--border); }
+      th { color: var(--muted); font-weight: 500; }
+      .del { background: none; border: 1px solid var(--border); color: var(--muted); border-radius: 8px; padding: 4px 10px; cursor: pointer; font-size: 13px; }
+      .del:hover { color: #ff8a8a; border-color: #ff8a8a; }
+      .note { font-size: 12.5px; color: var(--muted); line-height: 1.6; }
+      .status { font-size: 13px; margin-top: 12px; min-height: 18px; }
+      .fname { font-size: 13px; color: var(--text); margin-top: 10px; }
+    </style>
+  </head>
+  <body>
+    <div class="admin-wrap">
+      <div class="admin-head">
+        <h1>🔧 Quản trị tài liệu nội bộ</h1>
+        <a href="/">← Về trang chat</a>
+      </div>
+
+      <div class="card2">
+        <h2>Tải tài liệu lên</h2>
+        <div class="drop" id="drop">Kéo-thả file vào đây, hoặc <u>bấm để chọn</u><br /><span style="font-size:12px">PDF · Word · Excel · Markdown · TXT…</span></div>
+        <input type="file" id="file" hidden />
+        <div class="fname" id="fname"></div>
+        <div class="row" style="margin-top:14px">
+          <label class="note">Phòng ban:
+            <select id="folder">
+              <option value="ketoan">Kế toán</option>
+              <option value="sop">SOP / Quy trình</option>
+              <option value="crm">CRM / Kinh doanh</option>
+              <option value="mua">Mua hàng</option>
+              <option value="kho">Kho</option>
+              <option value="odoo">Odoo</option>
+            </select>
+          </label>
+          <button class="btn-primary" id="up" disabled>Tải lên</button>
+        </div>
+        <div class="status" id="status"></div>
+        <p class="note" style="margin-top:14px">⏳ Tài liệu mới được AutoRAG <b>tự đồng bộ & index</b> (có thể mất vài phút–vài giờ). Cần index ngay: Cloudflare → AI Search → <b>daisan-internal-ai</b> → bấm <b>Sync</b>.</p>
+      </div>
+
+      <div class="card2">
+        <h2>Tài liệu hiện có</h2>
+        <table><thead><tr><th>Tên file</th><th>Phòng</th><th>Dung lượng</th><th></th></tr></thead><tbody id="docs"></tbody></table>
+        <p class="note" id="empty" style="display:none">Chưa có tài liệu nào.</p>
+      </div>
+    </div>
+    <script src="/admin.js"></script>
+  </body>
+</html>

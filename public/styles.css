@@ -278,3 +278,18 @@ body {
   .turn, .composer { padding-left: 16px; padding-right: 16px; }
   .examples { grid-template-columns: 1fr; }
 }
+
+/* --- Dừng / Tạo lại / đổi tên hội thoại (nâng cấp Đợt 1) --- */
+.send-btn.stop { background: #ef4444; box-shadow: none; }
+.conv-del.confirm { opacity: 1; background: rgba(239, 68, 68, 0.18); color: #ff8a8a; font-size: 11px; padding: 2px 7px; }
+.conv-rename {
+  flex: 1; min-width: 0; font: inherit; font-size: 13.5px;
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--accent); border-radius: 7px; padding: 3px 7px; outline: none;
+}
+.admin-link {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 10px; border-radius: 10px; text-decoration: none; font-size: 13.5px;
+  color: var(--muted); border: 1px solid var(--border); background: var(--surface); transition: .12s;
+}
+.admin-link:hover { color: var(--text); background: var(--surface-2); }

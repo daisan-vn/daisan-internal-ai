@@ -1,0 +1,14 @@
+{
+  // Deploy Daisan AI Platform (SPA React tĩnh) lên dgos.daisan.ai.
+  "name": "daisan-ai-platform",
+  "main": "worker.js",
+  "compatibility_date": "2025-01-01",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    // SPA: route nào không khớp file tĩnh -> trả index.html (để React Router xử lý).
+    "not_found_handling": "single-page-application"
+  },
+  "routes": [{ "pattern": "dgos.daisan.ai", "custom_domain": true }],
+  "observability": { "enabled": true }
+}

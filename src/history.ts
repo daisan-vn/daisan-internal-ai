@@ -77,6 +77,14 @@ export async function addMessageRow(
   ).run();
 }
 
+export async function renameConversation(env: Env, email: string, id: string, title: string): Promise<boolean> {
+  if (!title) return false;
+  const res = await env.DB.prepare(
+    "UPDATE conversations SET title = ? WHERE id = ? AND user_email = ?",
+  ).bind(title.slice(0, 80), id, email).run();
+  return (res.meta?.changes ?? 0) > 0;
+}
+
 export async function touchConversation(env: Env, id: string): Promise<void> {
   await env.DB.prepare("UPDATE conversations SET updated_at = ? WHERE id = ?").bind(Date.now(), id).run();
 }

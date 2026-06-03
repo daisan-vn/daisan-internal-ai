@@ -10,10 +10,11 @@ const backdrop = document.getElementById("backdrop");
 const convListEl = document.getElementById("convList");
 const userEmailEl = document.getElementById("userEmail");
 
-// Lịch sử lượt chat (gửi kèm mỗi request làm ngữ cảnh cho Claude).
 const history = [];
-// Cuộc trò chuyện hiện tại (null = chưa lưu / chat mới).
 let conversationId = null;
+let controller = null;       // AbortController của lượt đang stream
+let streaming = false;
+let lastQuestion = null;
 
 const EXAMPLES = [
   "Cách tạo hóa đơn bán hàng cho khách trong Odoo?",
@@ -31,8 +32,7 @@ function inlineMd(s) {
     .replace(/`([^`]+)`/g, "<code>$1</code>")
     .replace(/\*\*([^*]+?)\*\*/g, "<strong>$1</strong>")
     .replace(/\*([^*\n]+?)\*/g, "<em>$1</em>")
-    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g,
-      '<a href="$2" target="_blank" rel="noopener">$1</a>');
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
 }
 function splitRow(line) {
   return line.replace(/^\s*\|?/, "").replace(/\|?\s*$/, "").split("|").map((c) => c.trim());
@@ -43,7 +43,6 @@ function renderMarkdown(md) {
   let i = 0;
   const isBlockStart = (l) =>
     /^(#{1,6}\s|```|>\s?|\s*[-*+]\s|\s*\d+\.\s)/.test(l) || /^(\-{3,}|\*{3,}|_{3,})\s*$/.test(l);
-
   while (i < lines.length) {
     const line = lines[i];
     if (/^```/.test(line)) {
@@ -57,8 +56,7 @@ function renderMarkdown(md) {
     let m = line.match(/^(#{1,6})\s+(.*)$/);
     if (m) { const lvl = Math.min(m[1].length + 2, 6); html += `<h${lvl}>${inlineMd(m[2])}</h${lvl}>`; i++; continue; }
     if (/^(\-{3,}|\*{3,}|_{3,})\s*$/.test(line)) { html += "<hr>"; i++; continue; }
-    if (line.includes("|") && i + 1 < lines.length &&
-        /^\s*\|?[\s:|-]*-[\s:|-]*\|?\s*$/.test(lines[i + 1])) {
+    if (line.includes("|") && i + 1 < lines.length && /^\s*\|?[\s:|-]*-[\s:|-]*\|?\s*$/.test(lines[i + 1])) {
       const head = splitRow(line); i += 2;
       let rows = "";
       while (i < lines.length && lines[i].includes("|") && !/^\s*$/.test(lines[i])) {
@@ -75,15 +73,13 @@ function renderMarkdown(md) {
     }
     if (/^\s*[-*+]\s+/.test(line)) {
       let items = "";
-      while (i < lines.length && /^\s*[-*+]\s+/.test(lines[i]))
-        items += `<li>${inlineMd(lines[i++].replace(/^\s*[-*+]\s+/, ""))}</li>`;
+      while (i < lines.length && /^\s*[-*+]\s+/.test(lines[i])) items += `<li>${inlineMd(lines[i++].replace(/^\s*[-*+]\s+/, ""))}</li>`;
       html += `<ul>${items}</ul>`;
       continue;
     }
     if (/^\s*\d+\.\s+/.test(line)) {
       let items = "";
-      while (i < lines.length && /^\s*\d+\.\s+/.test(lines[i]))
-        items += `<li>${inlineMd(lines[i++].replace(/^\s*\d+\.\s+/, ""))}</li>`;
+      while (i < lines.length && /^\s*\d+\.\s+/.test(lines[i])) items += `<li>${inlineMd(lines[i++].replace(/^\s*\d+\.\s+/, ""))}</li>`;
       html += `<ol>${items}</ol>`;
       continue;
     }
@@ -137,8 +133,6 @@ function addMessage(role, text) {
   scrollBottom();
   return bubble;
 }
-
-// Render 1 lượt đã hoàn chỉnh (dùng khi nạp lịch sử).
 function renderFinal(role, content, sources) {
   const bubble = addMessage(role, content);
   if (role === "assistant") {
@@ -148,7 +142,6 @@ function renderFinal(role, content, sources) {
     addActions(bubble);
   }
 }
-
 function renderSources(bubble, sources) {
   if (!sources || sources.length === 0) return;
   const box = document.createElement("div");
@@ -162,7 +155,7 @@ function renderSources(bubble, sources) {
   bubble.parentElement.appendChild(box);
 }
 
-/* ---------------- Thanh nút: Copy / Sửa / Email / Chia sẻ ---------------- */
+/* ---------------- Thanh nút dưới câu trả lời ---------------- */
 function flash(btn, msg) {
   const span = btn.querySelector("span");
   const old = span.dataset.label;
@@ -181,6 +174,7 @@ function addActions(bubble) {
     b.addEventListener("click", () => fn(b));
     bar.appendChild(b);
   };
+  mk("Tạo lại", "🔄", () => { if (!streaming) regenerate(); });
   mk("Copy", "📋", async (b) => {
     try { await navigator.clipboard.writeText(text()); flash(b, "Đã copy ✓"); } catch { flash(b, "Lỗi copy"); }
   });
@@ -189,8 +183,7 @@ function addActions(bubble) {
     const on = bubble.getAttribute("contenteditable") === "true";
     bubble.setAttribute("contenteditable", on ? "false" : "true");
     bubble.classList.toggle("editing", !on);
-    span.textContent = on ? "Sửa" : "Xong";
-    span.dataset.label = on ? "Sửa" : "Xong";
+    span.textContent = on ? "Sửa" : "Xong"; span.dataset.label = on ? "Sửa" : "Xong";
     if (!on) bubble.focus();
   });
   mk("Email", "✉️", () => {
@@ -206,8 +199,7 @@ function addActions(bubble) {
 
 /* ---------------- Lịch sử hội thoại (sidebar) ---------------- */
 function markActive() {
-  convListEl.querySelectorAll(".conv-item").forEach((el) =>
-    el.classList.toggle("active", el.dataset.id === conversationId));
+  convListEl.querySelectorAll(".conv-item").forEach((el) => el.classList.toggle("active", el.dataset.id === conversationId));
 }
 async function loadConversations() {
   try {
@@ -215,24 +207,43 @@ async function loadConversations() {
     if (!res.ok) return;
     const { conversations } = await res.json();
     convListEl.innerHTML = "";
-    if (!conversations.length) {
-      convListEl.innerHTML = '<p class="conv-empty">Chưa có cuộc trò chuyện nào.</p>';
-      return;
-    }
+    if (!conversations.length) { convListEl.innerHTML = '<p class="conv-empty">Chưa có cuộc trò chuyện nào.</p>'; return; }
     for (const c of conversations) {
       const item = document.createElement("div");
       item.className = "conv-item"; item.dataset.id = c.id;
       const title = document.createElement("span");
-      title.className = "conv-title"; title.textContent = c.title;
+      title.className = "conv-title"; title.textContent = c.title; title.title = "Bấm đúp để đổi tên";
+      title.addEventListener("dblclick", (e) => { e.stopPropagation(); startRename(item, c, title); });
       const del = document.createElement("button");
       del.className = "conv-del"; del.type = "button"; del.textContent = "✕"; del.title = "Xóa";
-      del.addEventListener("click", (e) => deleteConv(c.id, e));
+      del.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (del.dataset.confirm === "1") { doDelete(c.id); return; }
+        del.dataset.confirm = "1"; del.textContent = "Xóa?"; del.classList.add("confirm");
+        setTimeout(() => { if (del.dataset.confirm === "1") { del.dataset.confirm = ""; del.textContent = "✕"; del.classList.remove("confirm"); } }, 2500);
+      });
       item.appendChild(title); item.appendChild(del);
       item.addEventListener("click", () => loadConversation(c.id));
       convListEl.appendChild(item);
     }
     markActive();
   } catch {}
+}
+function startRename(item, c, title) {
+  const inp = document.createElement("input");
+  inp.className = "conv-rename"; inp.value = c.title;
+  title.replaceWith(inp); inp.focus(); inp.select();
+  let saved = false;
+  const finish = async (save) => {
+    if (saved) return; saved = true;
+    const nv = inp.value.trim();
+    if (save && nv && nv !== c.title) {
+      try { await fetch(`/api/conversations/${c.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: nv }) }); } catch {}
+    }
+    loadConversations();
+  };
+  inp.addEventListener("keydown", (ev) => { if (ev.key === "Enter") finish(true); if (ev.key === "Escape") finish(false); });
+  inp.addEventListener("blur", () => finish(true));
 }
 async function loadConversation(id) {
   try {
@@ -242,18 +253,11 @@ async function loadConversation(id) {
     conversationId = conv.id;
     history.length = 0;
     messagesEl.innerHTML = "";
-    for (const m of conv.messages) {
-      history.push({ role: m.role, content: m.content });
-      renderFinal(m.role, m.content, m.sources);
-    }
-    markActive();
-    closeSidebar();
-    scrollBottom();
+    for (const m of conv.messages) { history.push({ role: m.role, content: m.content }); renderFinal(m.role, m.content, m.sources); }
+    markActive(); closeSidebar(); scrollBottom();
   } catch {}
 }
-async function deleteConv(id, ev) {
-  ev.stopPropagation();
-  if (!confirm("Xóa cuộc trò chuyện này?")) return;
+async function doDelete(id) {
   try { await fetch(`/api/conversations/${id}`, { method: "DELETE" }); } catch {}
   if (id === conversationId) { conversationId = null; history.length = 0; renderEmpty(); }
   loadConversations();
@@ -266,24 +270,42 @@ async function loadMe() {
   } catch {}
 }
 
-/* ---------------- Gọi API chat ---------------- */
+/* ---------------- Gọi API chat (stream + dừng + tạo lại) ---------------- */
+function setStreaming(on) {
+  streaming = on;
+  sendBtn.classList.toggle("stop", on);
+  sendBtn.textContent = on ? "■" : "↑";
+  sendBtn.title = on ? "Dừng" : "Gửi";
+}
 async function ask(question) {
+  lastQuestion = question;
   history.push({ role: "user", content: question });
   addMessage("user", question);
-
+  await streamAnswer();
+}
+async function regenerate() {
+  if (history.length && history[history.length - 1].role === "assistant") history.pop();
+  const turns = messagesEl.querySelectorAll(".turn.assistant");
+  if (turns.length) turns[turns.length - 1].remove();
+  await streamAnswer();
+}
+async function streamAnswer() {
   const bubble = addMessage("assistant", "");
   bubble.classList.add("typing");
   bubble.textContent = "Đang tra cứu tài liệu…";
 
+  controller = new AbortController();
+  setStreaming(true);
   let answer = "";
+  let lastRender = 0;
   try {
     const res = await fetch("/api/chat", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ messages: history, domain: domainSel.value || undefined, conversationId }),
+      signal: controller.signal,
     });
     if (!res.ok || !res.body) throw new Error("Không kết nối được máy chủ");
-
     const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
     let buffer = "";
     while (true) {
@@ -297,48 +319,52 @@ async function ask(question) {
         if (!line.startsWith("data:")) continue;
         const event = JSON.parse(line.slice(5).trim());
         if (event.text) {
-          bubble.classList.remove("typing");
+          if (!answer) { bubble.classList.remove("typing"); bubble.classList.add("md"); }
           answer += event.text;
-          bubble.textContent = answer;
-          scrollBottom();
+          const now = performance.now();
+          if (now - lastRender > 60) { bubble.innerHTML = renderMarkdown(answer); lastRender = now; scrollBottom(); }
         } else if (event.error) {
-          bubble.classList.remove("typing");
+          bubble.classList.remove("typing"); bubble.classList.remove("md");
           bubble.textContent = `⚠️ ${event.error}`;
         } else if (event.done) {
-          if (answer) { bubble.classList.add("md"); bubble.innerHTML = renderMarkdown(answer); }
+          if (answer) { bubble.innerHTML = renderMarkdown(answer); }
           renderSources(bubble, event.sources);
           if (answer) addActions(bubble);
           if (event.conversationId) conversationId = event.conversationId;
-          loadConversations();
-          scrollBottom();
+          loadConversations(); scrollBottom();
         }
       }
     }
     if (answer) history.push({ role: "assistant", content: answer });
   } catch (err) {
-    bubble.classList.remove("typing");
-    bubble.textContent = `⚠️ ${err.message}`;
+    if (err.name === "AbortError") {
+      if (answer) { bubble.innerHTML = renderMarkdown(answer); addActions(bubble); history.push({ role: "assistant", content: answer }); }
+      else { bubble.closest(".turn")?.remove(); }
+    } else {
+      bubble.classList.remove("typing", "md");
+      bubble.textContent = `⚠️ ${err.message}`;
+    }
+  } finally {
+    setStreaming(false); controller = null; input.focus();
   }
 }
 
 /* ---------------- Sự kiện ---------------- */
 form.addEventListener("submit", (e) => {
   e.preventDefault();
+  if (streaming) { controller?.abort(); return; }
   const q = input.value.trim();
   if (!q) return;
   input.value = ""; input.style.height = "auto";
-  sendBtn.disabled = true;
   closeSidebar();
-  ask(q).finally(() => { sendBtn.disabled = false; input.focus(); });
+  ask(q);
 });
 input.addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); }
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (!streaming) form.requestSubmit(); }
 });
-input.addEventListener("input", () => {
-  input.style.height = "auto";
-  input.style.height = `${input.scrollHeight}px`;
-});
+input.addEventListener("input", () => { input.style.height = "auto"; input.style.height = `${input.scrollHeight}px`; });
 newChatBtn.addEventListener("click", () => {
+  if (streaming) controller?.abort();
   conversationId = null; history.length = 0;
   renderEmpty(); markActive(); closeSidebar(); input.focus();
 });

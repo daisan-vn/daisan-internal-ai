@@ -39,6 +39,45 @@ export default {
         const ok = await hist.deleteConversation(env, email, id);
         return Response.json({ ok }, { status: ok ? 200 : 404 });
       }
+      if (request.method === "PATCH") {
+        let b: { title?: string };
+        try { b = await request.json(); } catch { return Response.json({ error: "JSON không hợp lệ" }, { status: 400 }); }
+        const ok = await hist.renameConversation(env, email, id, (b.title || "").trim());
+        return Response.json({ ok }, { status: ok ? 200 : 404 });
+      }
+    }
+
+    // --- Admin: quản trị tài liệu trong R2 (sau Access; có thể siết theo role sau) ---
+    if (path === "/api/admin/docs" && request.method === "GET") {
+      const list = await env.DOCS.list({ limit: 1000 });
+      return Response.json({
+        objects: list.objects.map((o) => ({ key: o.key, size: o.size, uploaded: o.uploaded?.getTime?.() ?? 0 })),
+      });
+    }
+    if (path === "/api/admin/docs" && request.method === "DELETE") {
+      const key = url.searchParams.get("key");
+      if (!key) return Response.json({ error: "Thiếu key" }, { status: 400 });
+      await env.DOCS.delete(key);
+      return Response.json({ ok: true });
+    }
+    if (path === "/api/admin/upload" && request.method === "POST") {
+      const form = await request.formData();
+      const file = form.get("file") as unknown as
+        | { name?: string; type?: string; arrayBuffer: () => Promise<ArrayBuffer> }
+        | null;
+      if (!file || typeof file.arrayBuffer !== "function" || !file.name) {
+        return Response.json({ error: "Thiếu file" }, { status: 400 });
+      }
+      const VALID = ["ketoan", "sop", "crm", "mua", "kho", "odoo"];
+      let folder = (form.get("folder") || "").toString().trim().toLowerCase();
+      if (!VALID.includes(folder)) folder = "khac";
+      const safe = file.name.replace(/[\\/]+/g, "_").replace(/\s+/g, "_");
+      const key = `${folder}/${safe}`;
+      await env.DOCS.put(key, await file.arrayBuffer(), {
+        httpMetadata: { contentType: file.type || "application/octet-stream" },
+        customMetadata: { uploadedBy: hist.userEmail(request) },
+      });
+      return Response.json({ ok: true, key });
     }
 
     if (path === "/api/chat" && request.method === "POST") {
