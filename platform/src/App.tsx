@@ -1,10 +1,16 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
-import Dashboard from "@/pages/Dashboard";
-import Permissions from "@/pages/Permissions";
-import DataSources from "@/pages/DataSources";
 import Chat from "@/pages/Chat";
-import Placeholder from "@/pages/Placeholder";
+import DeptAsk from "@/pages/DeptAsk";
+import Dashboard from "@/pages/Dashboard";
+import Metrics from "@/pages/Metrics";
+import Sop from "@/pages/Sop";
+import Reports from "@/pages/Reports";
+import Alerts from "@/pages/Alerts";
+import Actions from "@/pages/Actions";
+import DataSources from "@/pages/DataSources";
+import Permissions from "@/pages/Permissions";
+import Audit from "@/pages/Audit";
 
 export default function App() {
   return (
@@ -12,17 +18,17 @@ export default function App() {
       <Routes>
         <Route element={<AppShell />}>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/chat" element={<Chat />} />
-          <Route path="/permissions" element={<Permissions />} />
+          <Route path="/dept-ask" element={<DeptAsk />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/metrics" element={<Metrics />} />
+          <Route path="/sop" element={<Sop />} />
+          <Route path="/reports" element={<Reports />} />
+          <Route path="/alerts" element={<Alerts />} />
+          <Route path="/actions" element={<Actions />} />
           <Route path="/sources" element={<DataSources />} />
-          <Route path="/dept-ask" element={<Placeholder title="Hỏi theo phòng ban" />} />
-          <Route path="/metrics" element={<Placeholder title="Trung tâm số liệu" />} />
-          <Route path="/sop" element={<Placeholder title="Trung tâm SOP" />} />
-          <Route path="/reports" element={<Placeholder title="Trung tâm báo cáo" />} />
-          <Route path="/alerts" element={<Placeholder title="Trung tâm cảnh báo" />} />
-          <Route path="/actions" element={<Placeholder title="Trung tâm hành động" />} />
-          <Route path="/audit" element={<Placeholder title="Lịch sử truy vấn" />} />
+          <Route path="/permissions" element={<Permissions />} />
+          <Route path="/audit" element={<Audit />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Route>
       </Routes>
