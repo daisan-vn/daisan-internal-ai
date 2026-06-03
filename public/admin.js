@@ -221,7 +221,10 @@ async function loadSyncStatus() {
     renderSyncStatus(d);
     const running = d && d.status && d.status.state === "running";
     if (running && !gdrivePoll) gdrivePoll = setInterval(loadSyncStatus, 3000);
-    if (!running && gdrivePoll) { clearInterval(gdrivePoll); gdrivePoll = null; }
+    if (!running && gdrivePoll) {
+      clearInterval(gdrivePoll); gdrivePoll = null;
+      if (typeof loadDocs === "function") loadDocs(); // làm mới danh sách tài liệu khi đồng bộ xong
+    }
   } catch {}
 }
 
