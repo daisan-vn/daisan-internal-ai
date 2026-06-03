@@ -38,7 +38,11 @@
     // URL/DB/UID là cấu hình thường; API key + login đặt bằng `wrangler secret put`.
     "ODOO_URL": "https://dserp.odoo.com",
     "ODOO_DB": "daisan-vn-daisanerp-main-22763695",
-    "ODOO_UID": "6"
+    "ODOO_UID": "6",
+
+    // Email được xem trang admin/lịch sử đăng nhập (phân tách bằng dấu phẩy).
+    // Thêm email quản lý khác vào đây nếu muốn cho họ xem. Để trống = mọi người xem được.
+    "ADMIN_EMAILS": "nhamphongdaijsc@gmail.com"
   },
 
   // Custom domain để nhân viên truy cập; sẽ bọc Cloudflare Access (chỉ email @daisan).

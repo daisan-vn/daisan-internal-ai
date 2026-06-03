@@ -3,10 +3,11 @@ import { retrieve } from "./rag";
 import { streamClaude, streamClaudeAgent } from "./llm";
 import { SYSTEM_PROMPT, buildContext, odooSystemNote } from "./prompt";
 import { ODOO_TOOLS, runOdooTool, describeOdooTool, odooConfigured } from "./odoo";
+import { recordAccess, isAdmin, listAccess } from "./access";
 import * as hist from "./history";
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     const path = url.pathname;
 
@@ -15,8 +16,20 @@ export default {
     }
 
     // Email người dùng hiện tại (từ Cloudflare Access) — để UI hiển thị.
+    // Đồng thời ghi nhận một lần đăng nhập/truy cập (không chặn response).
     if (path === "/api/me") {
-      return Response.json({ email: hist.userEmail(request) });
+      const email = hist.userEmail(request);
+      ctx.waitUntil(recordAccess(env, request));
+      return Response.json({ email, isAdmin: isAdmin(env, email) });
+    }
+
+    // Lịch sử đăng nhập (chỉ quản trị viên). days=0 -> tất cả.
+    if (path === "/api/admin/access" && request.method === "GET") {
+      if (!isAdmin(env, hist.userEmail(request))) {
+        return Response.json({ error: "Bạn không có quyền xem mục này." }, { status: 403 });
+      }
+      const days = Number(url.searchParams.get("days")) || 0;
+      return Response.json(await listAccess(env, days));
     }
 
     // Danh sách hội thoại của riêng người dùng.
@@ -82,7 +95,7 @@ export default {
     }
 
     if (path === "/api/chat" && request.method === "POST") {
-      return handleChat(request, env);
+      return handleChat(request, env, ctx);
     }
 
     // Mọi đường dẫn khác -> file tĩnh (UI chat) trong /public.
@@ -90,7 +103,9 @@ export default {
   },
 } satisfies ExportedHandler<Env>;
 
-async function handleChat(request: Request, env: Env): Promise<Response> {
+async function handleChat(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  ctx.waitUntil(recordAccess(env, request));
+
   let body: ChatRequest;
   try {
     body = await request.json();

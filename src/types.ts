@@ -12,6 +12,9 @@ export interface Env {
   DEFAULT_MODEL: string;
   RAG_TOP_K: string;
   RAG_SCORE_THRESHOLD: string;
+  // Danh sách email quản trị (phân tách bằng dấu phẩy) được xem trang admin/lịch sử
+  // đăng nhập. Để trống = mọi user qua Access đều xem được (hành vi cũ).
+  ADMIN_EMAILS?: string;
 
   // secrets
   ANTHROPIC_API_KEY: string;

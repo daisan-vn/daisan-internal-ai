@@ -73,3 +73,110 @@ async function loadDocs() {
   } catch {}
 }
 loadDocs();
+
+/* ===================== Tabs + Lịch sử đăng nhập ===================== */
+const tabBtns = document.querySelectorAll(".tab");
+const tabDocs = document.getElementById("tab-docs");
+const tabAccess = document.getElementById("tab-access");
+const tabAccessBtn = document.getElementById("tabAccessBtn");
+let accessLoaded = false;
+
+tabBtns.forEach((t) => t.addEventListener("click", () => {
+  tabBtns.forEach((x) => x.classList.toggle("active", x === t));
+  const isAccess = t.dataset.tab === "access";
+  tabDocs.hidden = isAccess;
+  tabAccess.hidden = !isAccess;
+  if (isAccess && !accessLoaded) { accessLoaded = true; loadAccess(); }
+}));
+
+// Ẩn tab "Lịch sử đăng nhập" nếu không phải quản trị viên.
+(async () => {
+  try {
+    const me = await (await fetch("/api/me")).json();
+    if (me && me.isAdmin === false && tabAccessBtn) tabAccessBtn.style.display = "none";
+  } catch {}
+})();
+
+const accStats = document.getElementById("accStats");
+const accRows = document.getElementById("accRows");
+const accEmpty = document.getElementById("accEmpty");
+const accAllowed = document.getElementById("accAllowed");
+const accDenied = document.getElementById("accDenied");
+const accSearch = document.getElementById("accSearch");
+const accRange = document.getElementById("accRange");
+const accRefresh = document.getElementById("accRefresh");
+let accData = [];
+
+function esc(s) { return (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+function fmtTime(ts) { return ts ? new Date(ts).toLocaleString("vi-VN") : "—"; }
+function ago(ts) {
+  const s = Math.floor((Date.now() - ts) / 1000);
+  if (s < 60) return "vừa xong";
+  if (s < 3600) return Math.floor(s / 60) + " phút trước";
+  if (s < 86400) return Math.floor(s / 3600) + " giờ trước";
+  return Math.floor(s / 86400) + " ngày trước";
+}
+function deviceFromUA(ua) {
+  ua = ua || "";
+  let os = "Khác";
+  if (/Windows/i.test(ua)) os = "Windows";
+  else if (/iPhone|iPad/i.test(ua)) os = "iOS";
+  else if (/Macintosh|Mac OS/i.test(ua)) os = "macOS";
+  else if (/Android/i.test(ua)) os = "Android";
+  else if (/Linux/i.test(ua)) os = "Linux";
+  let br = "";
+  if (/Edg\//i.test(ua)) br = "Edge";
+  else if (/OPR\/|Opera/i.test(ua)) br = "Opera";
+  else if (/Chrome\//i.test(ua)) br = "Chrome";
+  else if (/Firefox\//i.test(ua)) br = "Firefox";
+  else if (/Safari\//i.test(ua)) br = "Safari";
+  return br ? os + " · " + br : os;
+}
+
+async function loadAccess() {
+  try {
+    const res = await fetch("/api/admin/access?days=" + encodeURIComponent(accRange ? accRange.value : "7"));
+    if (res.status === 403) {
+      if (accAllowed) accAllowed.style.display = "none";
+      if (accDenied) accDenied.hidden = false;
+      return;
+    }
+    if (accAllowed) accAllowed.style.display = "";
+    if (accDenied) accDenied.hidden = true;
+    const data = await res.json();
+    accData = data.sessions || [];
+    renderStats(data.stats || {});
+    renderAccess();
+  } catch {}
+}
+function renderStats(s) {
+  const card = (v, l) => '<div class="stat"><div class="v">' + (v || 0) + '</div><div class="l">' + l + "</div></div>";
+  accStats.innerHTML =
+    card(s.users, "Người dùng") +
+    card(s.online, "Đang hoạt động") +
+    card(s.today, "Phiên 24h qua") +
+    card(s.total, "Tổng phiên");
+}
+function renderAccess() {
+  const q = (accSearch ? accSearch.value : "").trim().toLowerCase();
+  const rows = accData.filter((r) => !q || (r.user_email || "").toLowerCase().includes(q));
+  accRows.innerHTML = "";
+  accEmpty.style.display = rows.length ? "none" : "block";
+  const now = Date.now();
+  for (const r of rows) {
+    const online = now - r.last_seen_at < 5 * 60 * 1000;
+    const tr = document.createElement("tr");
+    tr.innerHTML =
+      "<td>" + (online ? '<span class="badge-on" title="Đang hoạt động"></span>' : "") + esc(r.user_email) + "</td>" +
+      "<td>" + fmtTime(r.started_at) + "</td>" +
+      "<td>" + ago(r.last_seen_at) + "</td>" +
+      '<td class="mono">' + esc(r.ip || "—") + "</td>" +
+      "<td>" + esc(r.country || "—") + "</td>" +
+      "<td>" + esc(deviceFromUA(r.user_agent)) + "</td>" +
+      "<td>" + (r.hits || 1) + "</td>";
+    accRows.appendChild(tr);
+  }
+}
+if (accRefresh) accRefresh.addEventListener("click", loadAccess);
+if (accRange) accRange.addEventListener("change", loadAccess);
+if (accSearch) accSearch.addEventListener("input", renderAccess);
