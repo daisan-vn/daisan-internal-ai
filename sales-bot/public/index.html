@@ -26,7 +26,22 @@
 
       <!-- Cột phải: kết quả sản phẩm (ẩn trên màn hẹp / widget) -->
       <aside class="sb-products" id="productsPanel">
-        <div class="sb-products-head">🛍️ Sản phẩm gợi ý</div>
+        <div class="sb-products-head">
+          <span>🛍️ Sản phẩm gợi ý</span>
+          <div class="sb-view-toggle">
+            <button type="button" id="viewGrid" class="active" title="Dạng lưới" aria-label="Lưới">⊞</button>
+            <button type="button" id="viewList" title="Dạng danh sách" aria-label="Danh sách">☰</button>
+          </div>
+        </div>
+        <div class="sb-products-bar" id="productsBar" hidden>
+          <select id="filterCat"><option value="">Tất cả ngành hàng</option></select>
+          <select id="filterSort">
+            <option value="">Sắp xếp: Liên quan</option>
+            <option value="asc">Giá: thấp → cao</option>
+            <option value="desc">Giá: cao → thấp</option>
+          </select>
+          <span class="sb-count" id="productsCount"></span>
+        </div>
         <div class="sb-products-grid" id="products">
           <div class="sb-products-empty">Hỏi em về sản phẩm — kết quả sẽ hiện ở đây 👈</div>
         </div>

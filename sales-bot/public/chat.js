@@ -4,6 +4,14 @@ const input = document.getElementById("input");
 const sendBtn = document.getElementById("send");
 const productsPanel = document.getElementById("productsPanel");
 const productsGrid = document.getElementById("products");
+const productsBar = document.getElementById("productsBar");
+const productsCount = document.getElementById("productsCount");
+const filterCat = document.getElementById("filterCat");
+const filterSort = document.getElementById("filterSort");
+const viewGrid = document.getElementById("viewGrid");
+const viewList = document.getElementById("viewList");
+let currentProducts = [];
+let panelView = "grid";
 
 const site = new URLSearchParams(location.search).get("site") || "daisanstore";
 const history = [];
@@ -68,11 +76,35 @@ function productCard(p) {
 // Màn rộng -> hiện sản phẩm ở CỘT PHẢI; màn hẹp/widget -> hiện trong khung chat.
 function isWide() { return window.matchMedia("(min-width: 760px)").matches; }
 
+// Lọc + sắp xếp + đổi lưới/danh sách cho panel phải (lọc trên kết quả đã tải).
+function applyPanel() {
+  if (!productsGrid) return;
+  let list = currentProducts.slice();
+  if (filterCat && filterCat.value) list = list.filter((p) => (p.category || "") === filterCat.value);
+  const sort = filterSort ? filterSort.value : "";
+  if (sort === "asc") list.sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
+  else if (sort === "desc") list.sort((a, b) => (b.price ?? -Infinity) - (a.price ?? -Infinity));
+  productsGrid.className = "sb-products-grid" + (panelView === "list" ? " list" : "");
+  productsGrid.innerHTML = "";
+  if (!list.length) {
+    productsGrid.innerHTML = '<div class="sb-products-empty">Không có sản phẩm khớp bộ lọc.</div>';
+  } else {
+    list.forEach((p) => productsGrid.appendChild(productCard(p)));
+  }
+  if (productsCount) productsCount.textContent = list.length + " sản phẩm";
+}
+
 function renderProducts(products) {
   if (isWide() && productsGrid) {
-    productsGrid.innerHTML = "";
-    products.forEach((p) => productsGrid.appendChild(productCard(p)));
-    bubble("bot", `👉 Em đã hiển thị <b>${products.length}</b> sản phẩm ở cột bên phải, anh/chị xem giúp em nhé.`);
+    currentProducts = products;
+    if (filterCat) {
+      const cats = [...new Set(products.map((p) => p.category).filter(Boolean))];
+      filterCat.innerHTML = '<option value="">Tất cả ngành hàng</option>' + cats.map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join("");
+    }
+    if (filterSort) filterSort.value = "";
+    if (productsBar) productsBar.hidden = false;
+    applyPanel();
+    bubble("bot", `👉 Em đã hiển thị <b>${products.length}</b> sản phẩm ở cột bên phải, anh/chị lọc/xem giúp em nhé.`);
   } else {
     const t = turn("bot");
     const row = document.createElement("div");
@@ -82,6 +114,11 @@ function renderProducts(products) {
     scrollBottom();
   }
 }
+
+if (filterCat) filterCat.addEventListener("change", applyPanel);
+if (filterSort) filterSort.addEventListener("change", applyPanel);
+if (viewGrid) viewGrid.addEventListener("click", () => { panelView = "grid"; viewGrid.classList.add("active"); viewList.classList.remove("active"); applyPanel(); });
+if (viewList) viewList.addEventListener("click", () => { panelView = "list"; viewList.classList.add("active"); viewGrid.classList.remove("active"); applyPanel(); });
 
 /* ---------- Thẻ cửa hàng gần nhất ---------- */
 function renderStores(stores) {
