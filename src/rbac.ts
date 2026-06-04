@@ -89,6 +89,13 @@ export async function allowedDeptsFor(env: Env, email: string): Promise<string[]
   return (ALL_DEPTS as readonly string[]).filter((d) => !blocked.has(d));
 }
 
+/** Có quyền giao việc (tạo task Odoo) không? Admin hoặc trong ASSIGNER_EMAILS. */
+export function canAssign(env: Env, email: string): boolean {
+  if (isAdmin(env, email)) return true;
+  const list = (env.ASSIGNER_EMAILS || "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
+  return list.includes((email || "").toLowerCase());
+}
+
 /* ----------------------------- Quản trị ----------------------------- */
 
 export interface GrantsView {

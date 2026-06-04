@@ -447,7 +447,7 @@ async function doDelete(id) {
 async function loadMe() {
   try {
     const res = await fetch("/api/me");
-    const { email, departments } = await res.json();
+    const { email, departments, canAssign } = await res.json();
     if (email && email !== "dev@local") userEmailEl.textContent = email;
     // Phân quyền: chỉ giữ các phòng người dùng được phép (luôn giữ "Tất cả").
     if (Array.isArray(departments)) {
@@ -455,8 +455,70 @@ async function loadMe() {
         if (o.value && !departments.includes(o.value)) o.remove();
       });
     }
+    if (canAssign && assignBtn) assignBtn.style.display = "flex";
   } catch {}
 }
+
+/* ---------------- Giao việc (Odoo) ---------------- */
+const assignBtn = document.getElementById("assignBtn");
+const assignModal = document.getElementById("assignModal");
+const asgProject = document.getElementById("asgProject");
+const asgUsers = document.getElementById("asgUsers");
+const asgTitle = document.getElementById("asgTitle");
+const asgDesc = document.getElementById("asgDesc");
+const asgDeadline = document.getElementById("asgDeadline");
+const asgStatus = document.getElementById("asgStatus");
+const asgSubmit = document.getElementById("asgSubmit");
+const asgCancel = document.getElementById("asgCancel");
+let assignOptionsLoaded = false;
+
+function closeAssign() { if (assignModal) assignModal.hidden = true; }
+async function openAssign() {
+  assignModal.hidden = false;
+  if (assignOptionsLoaded) return;
+  asgStatus.textContent = "Đang tải dự án & nhân sự…"; asgStatus.style.color = "var(--muted)";
+  try {
+    const res = await fetch("/api/assign/options");
+    const d = await res.json();
+    if (!res.ok) { asgStatus.textContent = "⚠️ " + (d.error || "Lỗi tải"); asgStatus.style.color = "#ff8a8a"; return; }
+    asgProject.innerHTML = '<option value="">(Không thuộc dự án)</option>' +
+      (d.projects || []).map((p) => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("");
+    asgUsers.innerHTML = (d.assignees || []).map((u) => `<option value="${u.id}">${escapeHtml(u.name)}</option>`).join("");
+    assignOptionsLoaded = true;
+    asgStatus.textContent = "";
+  } catch (e) { asgStatus.textContent = "⚠️ " + e.message; asgStatus.style.color = "#ff8a8a"; }
+}
+if (assignBtn) assignBtn.addEventListener("click", () => { closeSidebar(); openAssign(); });
+if (asgCancel) asgCancel.addEventListener("click", closeAssign);
+if (assignModal) assignModal.addEventListener("click", (e) => { if (e.target === assignModal) closeAssign(); });
+if (asgSubmit) asgSubmit.addEventListener("click", async () => {
+  const name = asgTitle.value.trim();
+  const assigneeIds = [...asgUsers.selectedOptions].map((o) => Number(o.value));
+  if (!name) { asgStatus.textContent = "⚠️ Nhập tiêu đề công việc."; asgStatus.style.color = "#ff8a8a"; return; }
+  if (!assigneeIds.length) { asgStatus.textContent = "⚠️ Chọn ít nhất một người nhận."; asgStatus.style.color = "#ff8a8a"; return; }
+  asgSubmit.disabled = true; asgStatus.textContent = "Đang tạo công việc trong Odoo…"; asgStatus.style.color = "var(--muted)";
+  try {
+    const res = await fetch("/api/assign", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        name,
+        description: asgDesc.value.trim() || undefined,
+        projectId: asgProject.value ? Number(asgProject.value) : undefined,
+        assigneeIds,
+        deadline: asgDeadline.value || undefined,
+      }),
+    });
+    const d = await res.json();
+    if (res.ok && d.ok) {
+      asgStatus.innerHTML = "✅ Đã giao việc (task #" + d.taskId + "). Odoo sẽ thông báo cho người nhận." +
+        (d.activityWarning ? "<br><span style='color:#e0a341'>Lưu ý: hoạt động nhắc việc chưa tạo được (" + escapeHtml(d.activityWarning) + ")</span>" : "");
+      asgStatus.style.color = "#4ade80";
+      asgTitle.value = ""; asgDesc.value = ""; asgDeadline.value = "";
+      [...asgUsers.options].forEach((o) => (o.selected = false));
+    } else { asgStatus.textContent = "❌ " + (d.error || "Lỗi"); asgStatus.style.color = "#ff8a8a"; }
+  } catch (e) { asgStatus.textContent = "❌ " + e.message; asgStatus.style.color = "#ff8a8a"; }
+  asgSubmit.disabled = false;
+});
 
 /* ---------------- Gọi API chat (stream + dừng + tạo lại) ---------------- */
 function setStreaming(on) {

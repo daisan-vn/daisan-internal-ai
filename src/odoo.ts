@@ -118,6 +118,18 @@ export async function odooExecute(
   ]);
 }
 
+/**
+ * GHI có kiểm soát: tạo MỘT bản ghi Odoo. CỐ Ý nằm ngoài whitelist read của
+ * odooExecute và CHỈ được gọi bởi tính năng "Giao việc" (tasks.ts) sau khi đã
+ * kiểm tra quyền. Chat AI vẫn chỉ dùng odooExecute (chỉ-đọc) nên không thể ghi.
+ */
+export async function odooCreate(env: Env, model: string, vals: Record<string, unknown>): Promise<number> {
+  const uid = await getUid(env);
+  const id = await jsonRpc(env, "object", "execute_kw", [env.ODOO_DB, uid, env.ODOO_API_KEY, model, "create", [vals]]);
+  if (typeof id !== "number") throw new Error("Tạo bản ghi Odoo thất bại.");
+  return id;
+}
+
 function clip(s: string): string {
   return s.length > MAX_RESULT_CHARS
     ? `${s.slice(0, MAX_RESULT_CHARS)}\n…[kết quả quá dài, đã cắt bớt — hãy thu hẹp truy vấn (thêm domain/limit/fields)]`

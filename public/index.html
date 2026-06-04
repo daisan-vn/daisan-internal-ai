@@ -25,6 +25,9 @@
           <button class="new-chat" id="newChat">
             <span>＋</span> Trò chuyện mới
           </button>
+          <button class="new-chat" id="assignBtn" style="display:none">
+            <span>🗂️</span> Giao việc (Odoo)
+          </button>
         </div>
 
         <div class="conv-section">
@@ -88,6 +91,34 @@
     </div>
 
     <div class="backdrop" id="backdrop"></div>
+
+    <!-- Modal Giao việc -->
+    <div class="modal-backdrop" id="assignModal" hidden>
+      <div class="modal">
+        <h2>🗂️ Giao việc — tạo công việc trong Odoo</h2>
+        <label class="fld">Dự án
+          <select id="asgProject"></select>
+        </label>
+        <label class="fld">Người nhận (giữ Ctrl/Cmd để chọn nhiều)
+          <select id="asgUsers" multiple size="6"></select>
+        </label>
+        <label class="fld">Tiêu đề công việc *
+          <input id="asgTitle" type="text" placeholder="VD: Soạn báo giá khách A" />
+        </label>
+        <label class="fld">Mô tả
+          <textarea id="asgDesc" rows="3" placeholder="Chi tiết yêu cầu…"></textarea>
+        </label>
+        <label class="fld">Hạn chót
+          <input id="asgDeadline" type="date" />
+        </label>
+        <div class="modal-status" id="asgStatus"></div>
+        <div class="modal-actions">
+          <button type="button" class="btn-ghost" id="asgCancel">Hủy</button>
+          <button type="button" class="btn-accent" id="asgSubmit">Giao việc</button>
+        </div>
+      </div>
+    </div>
+
     <script src="/chat.js"></script>
   </body>
 </html>

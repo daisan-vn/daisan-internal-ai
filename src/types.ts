@@ -18,6 +18,8 @@ export interface Env {
   // Phòng ban nhạy cảm (phân tách bằng dấu phẩy): chỉ admin/người được cấp mới xem
   // tài liệu. Để trống = mọi phòng đều mở. Xem src/rbac.ts.
   RESTRICTED_DEPTS?: string;
+  // Người được phép GIAO VIỆC (tạo task Odoo) ngoài admin — danh sách email, phẩy.
+  ASSIGNER_EMAILS?: string;
 
   // secrets
   ANTHROPIC_API_KEY: string;

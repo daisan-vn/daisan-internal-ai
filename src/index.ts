@@ -7,7 +7,8 @@ import { recordAccess, isAdmin, listAccess } from "./access";
 import { gdriveConfigured, runSyncWithStatus, readSyncStatus } from "./gdrive";
 import { getStats } from "./stats";
 import { setFeedback } from "./feedback";
-import { blockedDeptsFor, allowedDeptsFor, listGrants, setGrant, odooModelDept, DEPT_LABELS } from "./rbac";
+import { blockedDeptsFor, allowedDeptsFor, listGrants, setGrant, odooModelDept, DEPT_LABELS, canAssign } from "./rbac";
+import { listProjects, listAssignees, createTask } from "./tasks";
 import { generateReport, listReports, getReport } from "./reports";
 import { runAlerts, getAlertsView } from "./alerts";
 import { emailConfigured, sendEmail, alertHtml, alertSubject, alertsHaveIssues, reportHtml } from "./email";
@@ -31,7 +32,36 @@ export default {
         email,
         isAdmin: isAdmin(env, email),
         departments: await allowedDeptsFor(env, email),
+        canAssign: canAssign(env, email),
       });
+    }
+
+    // Giao việc: tùy chọn (dự án + người nhận) và tạo task. Cần quyền giao việc.
+    if (path === "/api/assign/options" && request.method === "GET") {
+      if (!canAssign(env, hist.userEmail(request))) return Response.json({ error: "Bạn không có quyền giao việc." }, { status: 403 });
+      if (!odooConfigured(env)) return Response.json({ error: "Chưa kết nối Odoo." }, { status: 400 });
+      const [projects, assignees] = await Promise.all([listProjects(env), listAssignees(env)]);
+      return Response.json({ projects, assignees });
+    }
+    if (path === "/api/assign" && request.method === "POST") {
+      if (!canAssign(env, hist.userEmail(request))) return Response.json({ error: "Bạn không có quyền giao việc." }, { status: 403 });
+      let b: { name?: string; description?: string; projectId?: number; assigneeIds?: number[]; deadline?: string };
+      try { b = await request.json(); } catch { return Response.json({ error: "JSON không hợp lệ" }, { status: 400 }); }
+      if (!b.name || !b.name.trim()) return Response.json({ error: "Thiếu tiêu đề công việc" }, { status: 400 });
+      if (!b.assigneeIds || !b.assigneeIds.length) return Response.json({ error: "Chọn ít nhất một người nhận" }, { status: 400 });
+      try {
+        const r = await createTask(env, {
+          name: b.name.trim(),
+          description: b.description,
+          projectId: b.projectId,
+          assigneeIds: b.assigneeIds,
+          deadline: b.deadline,
+          withActivity: true,
+        });
+        return Response.json({ ok: true, taskId: r.taskId, activityWarning: r.activityWarning });
+      } catch (e) {
+        return Response.json({ ok: false, error: e instanceof Error ? e.message : String(e) }, { status: 500 });
+      }
     }
 
     // Phân quyền phòng ban (chỉ admin). GET xem cấu hình, POST cấp/gỡ 1 quyền.
