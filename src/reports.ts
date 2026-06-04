@@ -26,8 +26,8 @@ const REPORT_PROMPT = `Hãy tạo BÁO CÁO KINH DOANH TUẦN cho Daisan Group d
 - Số đơn mua & tổng giá trị mua trong tuần (purchase.order).
 Yêu cầu trình bày: Markdown tiếng Việt, NGẮN GỌN, có tiêu đề và vài mục rõ ràng, dùng bảng khi cần, tiền tệ VND có phân tách hàng nghìn. Là hệ thống ĐA CÔNG TY — nêu rõ là tổng hợp toàn tập đoàn. Cuối báo cáo ghi mốc thời gian. Phần nào thiếu dữ liệu/không truy được thì ghi "không có dữ liệu", KHÔNG bịa.`;
 
-/** Tạo một báo cáo và lưu vào D1. kind: 'weekly' (cron) hoặc 'manual' (bấm tay). */
-export async function generateReport(env: Env, kind = "weekly"): Promise<void> {
+/** Tạo một báo cáo và lưu vào D1. Trả về tiêu đề + nội dung (để cron gửi email). */
+export async function generateReport(env: Env, kind = "weekly"): Promise<{ title: string; content: string }> {
   await ensureReportsTable(env);
   const now = Date.now();
   let content = "";
@@ -60,6 +60,7 @@ export async function generateReport(env: Env, kind = "weekly"): Promise<void> {
   await env.DB.prepare(
     "INSERT INTO reports (id, kind, title, content, created_at) VALUES (?, ?, ?, ?, ?)",
   ).bind(crypto.randomUUID(), kind, title, content, now).run();
+  return { title, content };
 }
 
 export async function listReports(env: Env) {

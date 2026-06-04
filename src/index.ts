@@ -10,6 +10,7 @@ import { setFeedback } from "./feedback";
 import { blockedDeptsFor, allowedDeptsFor, listGrants, setGrant, odooModelDept, DEPT_LABELS } from "./rbac";
 import { generateReport, listReports, getReport } from "./reports";
 import { runAlerts, getAlertsView } from "./alerts";
+import { emailConfigured, sendEmail, alertHtml, alertSubject, alertsHaveIssues, reportHtml } from "./email";
 import * as hist from "./history";
 
 export default {
@@ -91,6 +92,18 @@ export default {
     if (path === "/api/admin/alerts" && request.method === "POST") {
       if (!isAdmin(env, hist.userEmail(request))) return Response.json({ error: "Bạn không có quyền." }, { status: 403 });
       return Response.json({ result: await runAlerts(env) });
+    }
+
+    // Gửi email thử (chỉ admin) để kiểm tra cấu hình Resend.
+    if (path === "/api/admin/email-test" && request.method === "POST") {
+      if (!isAdmin(env, hist.userEmail(request))) return Response.json({ error: "Bạn không có quyền." }, { status: 403 });
+      if (!emailConfigured(env)) return Response.json({ ok: false, error: "Chưa cấu hình email (RESEND_API_KEY / EMAIL_FROM / ALERT_EMAIL_TO)." });
+      try {
+        await sendEmail(env, "✅ Email thử từ Trợ lý AI Daisan", reportHtml("Email thử nghiệm", "Nếu bạn nhận được email này, cấu hình email cảnh báo/báo cáo **đã hoạt động**."));
+        return Response.json({ ok: true });
+      } catch (e) {
+        return Response.json({ ok: false, error: e instanceof Error ? e.message : String(e) });
+      }
     }
 
     // Đồng bộ Google Drive -> kho tài liệu (chỉ admin). GET xem trạng thái, POST chạy.
@@ -207,9 +220,23 @@ export default {
   //  - còn lại (hằng ngày): đồng bộ Google Drive -> kho tài liệu.
   async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     if (event.cron === "0 1 * * 1") {
-      ctx.waitUntil(generateReport(env, "weekly"));
+      // Báo cáo tuần -> gửi email (nếu đã cấu hình).
+      ctx.waitUntil(
+        generateReport(env, "weekly").then(async (r) => {
+          if (emailConfigured(env)) {
+            try { await sendEmail(env, r.title, reportHtml(r.title, r.content)); } catch (e) { console.error("Gửi email báo cáo lỗi:", e); }
+          }
+        }),
+      );
     } else if (event.cron === "0 23 * * *") {
-      ctx.waitUntil(runAlerts(env));
+      // Cảnh báo hằng ngày -> chỉ gửi email khi CÓ vấn đề (tránh làm phiền).
+      ctx.waitUntil(
+        runAlerts(env).then(async (result) => {
+          if (emailConfigured(env) && alertsHaveIssues(result)) {
+            try { await sendEmail(env, alertSubject(result), alertHtml(result)); } catch (e) { console.error("Gửi email cảnh báo lỗi:", e); }
+          }
+        }),
+      );
     } else if (gdriveConfigured(env)) {
       ctx.waitUntil(runSyncWithStatus(env));
     }

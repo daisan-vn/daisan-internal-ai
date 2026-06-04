@@ -40,6 +40,12 @@ export interface Env {
   // secret: GDRIVE_SA_JSON (toàn bộ JSON khóa service account).
   GDRIVE_FOLDER_ID?: string;
   GDRIVE_SA_JSON?: string;
+
+  // --- Email (Resend) — xem src/email.ts ---
+  // secret: RESEND_API_KEY. vars: EMAIL_FROM, ALERT_EMAIL_TO (cách nhau dấu phẩy).
+  RESEND_API_KEY?: string;
+  EMAIL_FROM?: string;
+  ALERT_EMAIL_TO?: string;
 }
 
 /** Định nghĩa một công cụ (tool) gửi cho Claude theo chuẩn Anthropic Messages API. */

@@ -172,6 +172,18 @@ async function loadAlerts() {
   } catch {}
 }
 
+const alEmailTest = document.getElementById("alEmailTest");
+if (alEmailTest) alEmailTest.addEventListener("click", async () => {
+  alEmailTest.disabled = true;
+  alStatus.textContent = "✉️ Đang gửi email thử…"; alStatus.style.color = "var(--muted)";
+  try {
+    const d = await (await fetch("/api/admin/email-test", { method: "POST" })).json();
+    if (d.ok) { alStatus.textContent = "✅ Đã gửi email thử — kiểm tra hộp thư người nhận."; alStatus.style.color = "#4ade80"; }
+    else { alStatus.textContent = "❌ " + (d.error || "Lỗi"); alStatus.style.color = "#ff8a8a"; }
+  } catch (e) { alStatus.textContent = "❌ " + e.message; alStatus.style.color = "#ff8a8a"; }
+  alEmailTest.disabled = false;
+});
+
 if (alRun) alRun.addEventListener("click", async () => {
   alRun.disabled = true;
   alStatus.textContent = "⏳ Đang kiểm tra dữ liệu Odoo…";

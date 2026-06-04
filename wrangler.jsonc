@@ -47,6 +47,12 @@
     // Giữ làm fallback; chỉ dùng khi không có ODOO_LOGIN.
     "ODOO_UID": "6",
 
+    // --- Email cảnh báo/báo cáo (Resend) — xem src/email.ts ---
+    // EMAIL_FROM phải là người gửi đã xác thực trong Resend; ALERT_EMAIL_TO là
+    // người nhận (cách nhau dấu phẩy). API key đặt riêng: wrangler secret put RESEND_API_KEY.
+    "EMAIL_FROM": "",
+    "ALERT_EMAIL_TO": "",
+
     // Email được xem trang admin/lịch sử đăng nhập (phân tách bằng dấu phẩy).
     // Thêm email quản lý khác vào đây nếu muốn cho họ xem. Để trống = mọi người xem được.
     "ADMIN_EMAILS": "nhamphongdaijsc@gmail.com",

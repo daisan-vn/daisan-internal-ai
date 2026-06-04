@@ -181,8 +181,12 @@
                 <h2 style="margin:0 0 6px">🚨 Cảnh báo giám sát</h2>
                 <p class="note" id="alTime" style="margin:0">Tự động kiểm tra <b>mỗi sáng 06:00</b>: công nợ quá hạn, tồn kho âm, quỹ chưa đối chiếu.</p>
               </div>
-              <button class="btn-primary" id="alRun">🔄 Kiểm tra ngay</button>
+              <div class="row" style="gap:8px">
+                <button class="del" id="alEmailTest">✉️ Gửi email thử</button>
+                <button class="btn-primary" id="alRun">🔄 Kiểm tra ngay</button>
+              </div>
             </div>
+            <p class="note" style="margin:10px 0 0">📧 Tự gửi email: <b>báo cáo tuần</b> (sáng thứ 2) và <b>cảnh báo</b> (mỗi sáng, chỉ khi có vấn đề). Cần cấu hình Resend — xem nút "Gửi email thử".</p>
             <div class="status" id="alStatus"></div>
           </div>
           <div id="alBody"></div>
