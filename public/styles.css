@@ -11,7 +11,22 @@
   --grad: linear-gradient(135deg, #4f8cff 0%, #a855f7 100%);
   --code-bg: #0f1014;
   --user-bubble: #34363c;
+  --topbar-bg: rgba(20, 21, 23, 0.85);
   --radius: 18px;
+}
+
+/* Chế độ SÁNG (bật khi <html data-theme="light">). Mặc định là tối ở :root. */
+[data-theme="light"] {
+  --bg: #f7f7f8;
+  --sidebar: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #f0f1f3;
+  --border: #e3e4e8;
+  --text: #1b1c1f;
+  --muted: #6b6f76;
+  --code-bg: #f2f3f5;
+  --user-bubble: #e7efff;
+  --topbar-bg: rgba(255, 255, 255, 0.85);
 }
 
 * { box-sizing: border-box; }
@@ -111,8 +126,16 @@ body {
 .topbar {
   display: flex; align-items: center; gap: 12px;
   padding: 12px 18px; border-bottom: 1px solid var(--border);
-  background: rgba(27, 28, 31, 0.85); backdrop-filter: blur(8px);
+  background: var(--topbar-bg); backdrop-filter: blur(8px);
 }
+/* Nút chuyển nền Sáng/Tối */
+.theme-toggle {
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--border); border-radius: 10px;
+  padding: 8px 10px; font-size: 15px; cursor: pointer; line-height: 1;
+  transition: background .15s, border-color .15s;
+}
+.theme-toggle:hover { background: var(--surface-2); border-color: #4a4c54; }
 .icon-btn {
   display: none; background: none; border: none; color: var(--text);
   font-size: 20px; cursor: pointer; padding: 4px 6px; border-radius: 8px;

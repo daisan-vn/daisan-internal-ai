@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Trợ lý AI nội bộ — Daisan Group</title>
     <link rel="stylesheet" href="/styles.css" />
+    <script>
+      // Áp dụng nền Sáng/Tối đã lưu ngay lập tức (tránh nhấp nháy). Mặc định: tối.
+      (function () { try { if (localStorage.getItem("theme") === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) {} })();
+    </script>
   </head>
   <body>
     <div class="layout">
@@ -57,6 +61,7 @@
             <span>Trợ lý AI nội bộ</span>
             <small>Claude Sonnet 4.6</small>
           </div>
+          <button class="theme-toggle" id="themeToggle" type="button" title="Đổi nền Sáng/Tối" aria-label="Đổi nền">🌙</button>
           <span class="topbar-badge">🔒 Chỉ nội bộ</span>
         </header>
 

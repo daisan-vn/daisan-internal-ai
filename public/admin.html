@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Quản trị — Daisan AI</title>
     <link rel="stylesheet" href="/styles.css" />
+    <script>
+      (function () { try { if (localStorage.getItem("theme") === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) {} })();
+    </script>
     <style>
       .admin-wrap { max-width: 1000px; margin: 0 auto; padding: 28px 20px; }
       .admin-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
@@ -54,7 +57,10 @@
     <div class="admin-wrap">
       <div class="admin-head">
         <h1>🔧 Quản trị — Daisan AI</h1>
-        <a href="/">← Về trang chat</a>
+        <div style="display:flex; align-items:center; gap:10px">
+          <button class="theme-toggle" id="themeToggle" type="button" title="Đổi nền Sáng/Tối" aria-label="Đổi nền">🌙</button>
+          <a href="/">← Về trang chat</a>
+        </div>
       </div>
 
       <div class="tabs">

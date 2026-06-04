@@ -569,6 +569,24 @@ menuBtn.addEventListener("click", openSidebar);
 backdrop.addEventListener("click", closeSidebar);
 document.addEventListener("click", () => document.querySelectorAll(".export-menu.open").forEach((m) => m.classList.remove("open")));
 
+/* ---------------- Nền Sáng/Tối ---------------- */
+(function initTheme() {
+  const btn = document.getElementById("themeToggle");
+  if (!btn) return;
+  let theme;
+  try { theme = localStorage.getItem("theme") || "dark"; } catch { theme = "dark"; }
+  const apply = () => {
+    document.documentElement.setAttribute("data-theme", theme === "light" ? "light" : "dark");
+    btn.textContent = theme === "light" ? "☀️" : "🌙";
+  };
+  apply();
+  btn.addEventListener("click", () => {
+    theme = theme === "light" ? "dark" : "light";
+    try { localStorage.setItem("theme", theme); } catch {}
+    apply();
+  });
+})();
+
 /* ---------------- Khởi động ---------------- */
 renderEmpty();
 loadMe();
