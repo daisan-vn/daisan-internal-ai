@@ -110,8 +110,16 @@ async function handleChat(request: Request, env: Env, cors: Record<string, strin
       const send = (o: unknown) => controller.enqueue(encoder.encode(`data: ${JSON.stringify(o)}\n\n`));
       try {
         for await (const ev of streamSalesAgent(env, system, messages, TOOLS, runTool, describeTool)) {
-          if (ev.type === "text") send({ text: ev.text });
-          else send({ tool: { name: ev.name, phase: ev.phase, summary: ev.summary } });
+          if (ev.type === "text") { send({ text: ev.text }); continue; }
+          send({ tool: { name: ev.name, phase: ev.phase, summary: ev.summary } });
+          // Đẩy dữ liệu có cấu trúc ra UI để vẽ thẻ sản phẩm / cửa hàng (kiểu Tiki).
+          if (ev.phase === "done" && ev.result) {
+            try {
+              const parsed = JSON.parse(ev.result);
+              if (Array.isArray(parsed.products) && parsed.products.length) send({ products: parsed.products });
+              if (Array.isArray(parsed.stores) && parsed.stores.length) send({ stores: parsed.stores });
+            } catch { /* bỏ qua */ }
+          }
         }
         send({ done: true });
       } catch (err) {

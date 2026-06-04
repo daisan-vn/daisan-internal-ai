@@ -67,6 +67,7 @@ async function searchES(env: Env, base: string, query: string, limit: number): P
       unit: s.unit ? String(s.unit) : undefined,
       brand: s.brand ? String(s.brand) : undefined,
       desc: s.description ? String(s.description) : undefined,
+      image: s.image ? String(s.image) : s.image_url ? String(s.image_url) : s.thumbnail ? String(s.thumbnail) : undefined,
     } as Product;
   });
 }

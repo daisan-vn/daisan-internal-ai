@@ -34,7 +34,7 @@ async function postClaude(env: Env, body: Record<string, unknown>): Promise<Resp
 
 export type AgentEvent =
   | { type: "text"; text: string }
-  | { type: "tool"; name: string; phase: "start" | "done" | "error"; summary: string };
+  | { type: "tool"; name: string; phase: "start" | "done" | "error"; summary: string; result?: string };
 
 interface Block { type: "text" | "tool_use"; text?: string; id?: string; name?: string; json?: string }
 
@@ -122,7 +122,7 @@ export async function* streamSalesAgent(
       try {
         const out = await runTool(tu.name, tu.input);
         results.push({ type: "tool_result", tool_use_id: tu.id, content: out });
-        yield { type: "tool", name: tu.name, phase: "done", summary };
+        yield { type: "tool", name: tu.name, phase: "done", summary, result: out };
       } catch (err) {
         results.push({ type: "tool_result", tool_use_id: tu.id, content: `Lỗi: ${err instanceof Error ? err.message : err}`, is_error: true });
         yield { type: "tool", name: tu.name, phase: "error", summary };

@@ -46,6 +46,7 @@ export interface Product {
   unit?: string;
   brand?: string;
   desc?: string;
+  image?: string;
 }
 
 export interface Store {
