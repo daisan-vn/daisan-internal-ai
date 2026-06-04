@@ -98,10 +98,12 @@ function renderEmpty() {
   const wrap = document.createElement("div");
   wrap.className = "empty";
   wrap.innerHTML =
-    '<div class="empty-logo">✦</div>' +
+    '<img src="/logo.png" alt="Daisan Group" class="empty-logo-img" />' +
     "<h2>Chào mừng đến Trợ lý AI nội bộ Daisan</h2>" +
     "<p>Hỏi về số liệu trực tiếp trong Odoo (đơn hàng, doanh thu, công nợ, tồn kho…) và quy trình/SOP nội bộ — mình trả lời dựa trên dữ liệu sống + tài liệu nội bộ, luôn kèm nguồn.</p>" +
     '<div class="examples"></div>';
+  const _lg = wrap.querySelector(".empty-logo-img");
+  if (_lg) _lg.onerror = () => { _lg.outerHTML = '<div class="empty-logo">✦</div>'; };
   const ex = wrap.querySelector(".examples");
   EXAMPLES.forEach((q) => {
     const c = document.createElement("button");

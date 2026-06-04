@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Trợ lý AI nội bộ — Daisan Group</title>
+    <link rel="icon" href="/logo.png" />
     <link rel="stylesheet" href="/styles.css" />
     <script>
       // Áp dụng nền Sáng/Tối đã lưu ngay lập tức (tránh nhấp nháy). Mặc định: tối.
@@ -16,8 +17,10 @@
       <aside class="sidebar" id="sidebar">
         <div class="side-top">
           <div class="brand">
-            <span class="brand-logo">✦</span>
-            <span class="brand-name">Trợ lý Daisan</span>
+            <img src="/logo.png" alt="Daisan Group" class="brand-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
+            <span class="brand-fallback" style="display:none; align-items:center; gap:10px">
+              <span class="brand-logo">✦</span><span class="brand-name">Trợ lý Daisan</span>
+            </span>
           </div>
           <button class="new-chat" id="newChat">
             <span>＋</span> Trò chuyện mới
