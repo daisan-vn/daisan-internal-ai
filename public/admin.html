@@ -51,6 +51,7 @@
 
       <div class="tabs">
         <button class="tab active" data-tab="docs">📄 Tài liệu</button>
+        <button class="tab" data-tab="stats" id="tabStatsBtn">📊 Thống kê</button>
         <button class="tab" data-tab="access" id="tabAccessBtn">🔐 Lịch sử đăng nhập</button>
       </div>
 
@@ -93,6 +94,36 @@
           <table><thead><tr><th>Tên file</th><th>Phòng</th><th>Dung lượng</th><th></th></tr></thead><tbody id="docs"></tbody></table>
           <p class="note" id="empty" style="display:none">Chưa có tài liệu nào.</p>
         </div>
+      </section>
+
+      <!-- TAB: Thống kê -->
+      <section id="tab-stats" hidden>
+        <div id="statsAllowed">
+          <div class="row" style="justify-content:flex-end; margin-bottom:14px">
+            <select id="stRange">
+              <option value="7">7 ngày qua</option>
+              <option value="30" selected>30 ngày qua</option>
+              <option value="0">Tất cả</option>
+            </select>
+            <button class="del" id="stRefresh">↻ Tải lại</button>
+          </div>
+          <div class="stats" id="stStats"></div>
+
+          <div class="card2">
+            <h2>❓ Câu hỏi trợ lý CHƯA trả lời được</h2>
+            <p class="note" style="margin:-8px 0 14px">Những câu AI không tìm thấy trong tài liệu nội bộ. Đây chính là gợi ý <b>cần bổ sung tài liệu cho chủ đề nào</b> — bổ sung xong, AI sẽ trả lời được.</p>
+            <table><thead><tr><th>Câu hỏi</th><th>Người hỏi</th><th>Lúc</th></tr></thead><tbody id="stGaps"></tbody></table>
+            <p class="note" id="stGapsEmpty" style="display:none">🎉 Chưa có câu nào — AI đang trả lời được hầu hết câu hỏi từ tài liệu hiện có.</p>
+          </div>
+
+          <div class="card2">
+            <h2>🔥 Câu hỏi phổ biến</h2>
+            <p class="note" style="margin:-8px 0 14px">Nhân viên hay hỏi gì nhất — để biết trọng tâm nên đầu tư tài liệu.</p>
+            <table><thead><tr><th>Câu hỏi</th><th>Số lần</th><th>Gần nhất</th></tr></thead><tbody id="stTop"></tbody></table>
+            <p class="note" id="stTopEmpty" style="display:none">Chưa có dữ liệu.</p>
+          </div>
+        </div>
+        <div id="statsDenied" class="denied" hidden>🔒 Bạn không có quyền xem thống kê.<br /><span class="note">Chỉ tài khoản quản trị (cấu hình <b>ADMIN_EMAILS</b>) mới xem được.</span></div>
       </section>
 
       <!-- TAB: Lịch sử đăng nhập -->

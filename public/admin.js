@@ -76,24 +76,31 @@ loadDocs();
 
 /* ===================== Tabs + Lịch sử đăng nhập ===================== */
 const tabBtns = document.querySelectorAll(".tab");
-const tabDocs = document.getElementById("tab-docs");
-const tabAccess = document.getElementById("tab-access");
 const tabAccessBtn = document.getElementById("tabAccessBtn");
-let accessLoaded = false;
+const tabStatsBtn = document.getElementById("tabStatsBtn");
+const sectionByTab = {
+  docs: document.getElementById("tab-docs"),
+  stats: document.getElementById("tab-stats"),
+  access: document.getElementById("tab-access"),
+};
+let accessLoaded = false, statsLoaded = false;
 
 tabBtns.forEach((t) => t.addEventListener("click", () => {
+  const name = t.dataset.tab;
   tabBtns.forEach((x) => x.classList.toggle("active", x === t));
-  const isAccess = t.dataset.tab === "access";
-  tabDocs.hidden = isAccess;
-  tabAccess.hidden = !isAccess;
-  if (isAccess && !accessLoaded) { accessLoaded = true; loadAccess(); }
+  for (const k in sectionByTab) if (sectionByTab[k]) sectionByTab[k].hidden = k !== name;
+  if (name === "access" && !accessLoaded) { accessLoaded = true; loadAccess(); }
+  if (name === "stats" && !statsLoaded) { statsLoaded = true; loadStats(); }
 }));
 
-// Ẩn tab "Lịch sử đăng nhập" nếu không phải quản trị viên.
+// Ẩn các tab quản trị nếu không phải quản trị viên.
 (async () => {
   try {
     const me = await (await fetch("/api/me")).json();
-    if (me && me.isAdmin === false && tabAccessBtn) tabAccessBtn.style.display = "none";
+    if (me && me.isAdmin === false) {
+      if (tabAccessBtn) tabAccessBtn.style.display = "none";
+      if (tabStatsBtn) tabStatsBtn.style.display = "none";
+    }
   } catch {}
 })();
 
@@ -180,6 +187,47 @@ function renderAccess() {
 if (accRefresh) accRefresh.addEventListener("click", loadAccess);
 if (accRange) accRange.addEventListener("change", loadAccess);
 if (accSearch) accSearch.addEventListener("input", renderAccess);
+
+/* ===================== Thống kê ===================== */
+const stRange = document.getElementById("stRange");
+const stRefresh = document.getElementById("stRefresh");
+
+async function loadStats() {
+  const allowed = document.getElementById("statsAllowed");
+  const denied = document.getElementById("statsDenied");
+  try {
+    const res = await fetch("/api/admin/stats?days=" + encodeURIComponent(stRange ? stRange.value : "30"));
+    if (res.status === 403) {
+      if (allowed) allowed.style.display = "none";
+      if (denied) denied.hidden = false;
+      return;
+    }
+    if (allowed) allowed.style.display = "";
+    if (denied) denied.hidden = true;
+    const d = await res.json();
+    const s = d.stats || {};
+    const card = (v, l) => '<div class="stat"><div class="v">' + (v || 0) + '</div><div class="l">' + l + "</div></div>";
+    document.getElementById("stStats").innerHTML =
+      card(s.questions, "Câu hỏi") +
+      card(s.users, "Người dùng") +
+      card(s.conversations, "Cuộc trò chuyện") +
+      card(s.unknown, "Chưa trả lời được");
+
+    const gaps = d.gaps || [];
+    document.getElementById("stGapsEmpty").style.display = gaps.length ? "none" : "block";
+    document.getElementById("stGaps").innerHTML = gaps
+      .map((g) => "<tr><td>" + esc(g.question) + "</td><td>" + esc(g.user_email) + "</td><td>" + fmtTime(g.created_at) + "</td></tr>")
+      .join("");
+
+    const top = d.top || [];
+    document.getElementById("stTopEmpty").style.display = top.length ? "none" : "block";
+    document.getElementById("stTop").innerHTML = top
+      .map((t) => "<tr><td>" + esc(t.question) + "</td><td>" + (t.count || 1) + "</td><td>" + fmtTime(t.last) + "</td></tr>")
+      .join("");
+  } catch {}
+}
+if (stRange) stRange.addEventListener("change", loadStats);
+if (stRefresh) stRefresh.addEventListener("click", loadStats);
 
 /* ===================== Đồng bộ Google Drive ===================== */
 const gdriveCard = document.getElementById("gdriveCard");

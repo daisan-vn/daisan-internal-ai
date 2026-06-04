@@ -5,6 +5,7 @@ import { SYSTEM_PROMPT, buildContext, odooSystemNote } from "./prompt";
 import { ODOO_TOOLS, runOdooTool, describeOdooTool, odooConfigured, odooDiagnose } from "./odoo";
 import { recordAccess, isAdmin, listAccess } from "./access";
 import { gdriveConfigured, runSyncWithStatus, readSyncStatus } from "./gdrive";
+import { getStats } from "./stats";
 import * as hist from "./history";
 
 export default {
@@ -31,6 +32,15 @@ export default {
       }
       const days = Number(url.searchParams.get("days")) || 0;
       return Response.json(await listAccess(env, days));
+    }
+
+    // Thống kê sử dụng (chỉ admin): câu hỏi, người dùng, câu "chưa trả lời được" (gap).
+    if (path === "/api/admin/stats" && request.method === "GET") {
+      if (!isAdmin(env, hist.userEmail(request))) {
+        return Response.json({ error: "Bạn không có quyền." }, { status: 403 });
+      }
+      const days = Number(url.searchParams.get("days")) || 0;
+      return Response.json(await getStats(env, days));
     }
 
     // Đồng bộ Google Drive -> kho tài liệu (chỉ admin). GET xem trạng thái, POST chạy.
