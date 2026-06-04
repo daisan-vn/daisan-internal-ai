@@ -1,0 +1,28 @@
+name: Deploy to Cloudflare Workers
+
+# Tự động deploy troly.daisan.ai mỗi khi đẩy code lên branch chính/đang phát triển.
+# Cần thêm 1 secret trong GitHub: Settings > Secrets and variables > Actions
+#   - CLOUDFLARE_API_TOKEN: token Cloudflare có quyền "Edit Cloudflare Workers".
+# (Account ID không phải bí mật nên để thẳng trong env bên dưới.)
+on:
+  push:
+    branches:
+      - main
+      - "claude/**"
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - name: Deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        env:
+          CLOUDFLARE_ACCOUNT_ID: "4916931057954a4b6187316d83b4a5f2"
