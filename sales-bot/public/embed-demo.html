@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Demo nhúng widget — Daisan Sales Bot</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 0; color: #222; }
+      .hero { padding: 60px 24px; max-width: 760px; margin: 0 auto; }
+      h1 { color: #e11d2a; }
+      code { background: #f1f2f4; padding: 2px 6px; border-radius: 5px; }
+      .note { color: #666; line-height: 1.7; }
+    </style>
+  </head>
+  <body>
+    <div class="hero">
+      <h1>🧱 Trang web mẫu (giả lập daisanstore.com)</h1>
+      <p class="note">
+        Đây là trang demo để xem widget chatbot bán hàng. Bong bóng 💬 ở góc dưới-phải là
+        widget — bấm để mở và thử hỏi, ví dụ:
+        <em>"Tôi cần gạch ốp lát 60x60 ở Hà Nội"</em>.
+      </p>
+      <p class="note">
+        Để nhúng vào website thật, chỉ cần thêm 1 dòng:<br />
+        <code>&lt;script src="https://&lt;worker-url&gt;/widget.js" data-site="daisanstore" defer&gt;&lt;/script&gt;</code>
+      </p>
+    </div>
+    <!-- Widget: dùng đường dẫn tương đối để tự trỏ về Worker này khi xem trên *.workers.dev -->
+    <script src="/widget.js" data-site="daisanstore" defer></script>
+  </body>
+</html>

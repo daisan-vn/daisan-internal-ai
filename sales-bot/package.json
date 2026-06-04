@@ -1,0 +1,18 @@
+{
+  "name": "daisan-sales-bot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Chatbot bán hàng công khai Daisan — tìm sản phẩm (Elasticsearch), gợi ý cửa hàng gần nhất, thu lead.",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "cf-typegen": "wrangler types"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250101.0",
+    "typescript": "^5.7.0",
+    "wrangler": "^3.95.0"
+  }
+}

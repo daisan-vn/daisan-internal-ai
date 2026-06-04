@@ -1,0 +1,33 @@
+{
+  // Chatbot BÁN HÀNG CÔNG KHAI — Worker RIÊNG, tách hoàn toàn với trợ lý nội bộ.
+  // Không có binding Odoo full-read; chỉ dữ liệu công khai (sản phẩm/cửa hàng).
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "daisan-sales-bot",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-01-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // Bật URL *.workers.dev để test nhanh; sau gắn domain riêng (vd chat.daisanstore.com).
+  "workers_dev": true,
+
+  "assets": { "directory": "./public", "binding": "ASSETS" },
+
+  "vars": {
+    // AI Gateway dùng chung (billing/analytics gộp) — KHÔNG phải bí mật.
+    "CF_ACCOUNT_ID": "4916931057954a4b6187316d83b4a5f2",
+    "AI_GATEWAY_NAME": "daisan-gw",
+    "DEFAULT_MODEL": "claude-sonnet-4-6",
+    // Các domain được phép nhúng widget (CORS), cách nhau dấu phẩy. * = mọi nơi (chỉ nên dùng khi test).
+    "ALLOWED_ORIGINS": "*",
+
+    // --- Elasticsearch (để TRỐNG -> dùng dữ liệu sản phẩm MẪU) ---
+    "ES_URL": "",
+    "ES_INDEX": "products"
+    // secret: ES_API_KEY (wrangler secret put ES_API_KEY) nếu ES cần xác thực.
+  },
+
+  "observability": { "enabled": true }
+
+  // --- Khi cần lưu lead vào D1 (hoặc chuyển thẳng Odoo CRM ở bước sau) ---
+  // "d1_databases": [{ "binding": "DB", "database_name": "daisan-sales-bot", "database_id": "..." }]
+}

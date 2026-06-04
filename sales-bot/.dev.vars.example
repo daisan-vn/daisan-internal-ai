@@ -1,0 +1,13 @@
+# Copy thành .dev.vars để chạy local. Production: wrangler secret put <TÊN>.
+
+# API key Claude (route qua AI Gateway daisan-gw).
+ANTHROPIC_API_KEY=sk-ant-...
+
+# (Local) gọi thẳng Anthropic, bỏ qua gateway — tiện test.
+# ANTHROPIC_DIRECT=true
+
+# (Tùy chọn) Elasticsearch — nếu trống sẽ dùng sản phẩm mẫu.
+# ES_API_KEY=...
+
+# (Tùy chọn) Cloudflare Turnstile chống spam — secret key.
+# TURNSTILE_SECRET=...

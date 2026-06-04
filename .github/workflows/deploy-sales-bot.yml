@@ -1,0 +1,32 @@
+name: Deploy Sales Bot to Cloudflare
+
+# Deploy Worker bán hàng CÔNG KHAI (thư mục sales-bot/) — TÁCH RIÊNG với Worker
+# nội bộ. Chỉ chạy khi có thay đổi trong sales-bot/. Dùng chung secret
+# CLOUDFLARE_API_TOKEN. Worker này KHÔNG có binding/secret nội bộ.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "sales-bot/**"
+      - ".github/workflows/deploy-sales-bot.yml"
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sales-bot
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - name: Deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: sales-bot
+        env:
+          CLOUDFLARE_ACCOUNT_ID: "4916931057954a4b6187316d83b4a5f2"
