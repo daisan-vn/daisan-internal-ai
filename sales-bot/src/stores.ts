@@ -7,11 +7,11 @@ import type { Env, Store } from "./types";
  */
 
 const MOCK_STORES: Store[] = [
-  { id: "hn-caugiay", name: "Daisan Cầu Giấy", province: "Hà Nội", address: "Cầu Giấy, Hà Nội", lat: 21.0313, lng: 105.7872, phone: "1900xxxx", salesperson: "NV Hà Nội", categories: ["Gạch ốp lát", "Sơn", "Xi măng", "Thạch cao"] },
-  { id: "hn-hadong", name: "Daisan Hà Đông", province: "Hà Nội", address: "Hà Đông, Hà Nội", lat: 20.9710, lng: 105.7788, phone: "1900xxxx", salesperson: "NV Hà Nội", categories: ["Gạch ốp lát", "Xi măng"] },
-  { id: "hcm-q7", name: "Daisan Quận 7", province: "Hồ Chí Minh", address: "Quận 7, TP.HCM", lat: 10.7340, lng: 106.7215, phone: "1900xxxx", salesperson: "NV HCM", categories: ["Gạch ốp lát", "Sơn", "Thạch cao"] },
-  { id: "hcm-thuduc", name: "Daisan Thủ Đức", province: "Hồ Chí Minh", address: "TP Thủ Đức, TP.HCM", lat: 10.8499, lng: 106.7537, phone: "1900xxxx", salesperson: "NV HCM", categories: ["Gạch ốp lát", "Xi măng", "Sơn"] },
-  { id: "dn-haichau", name: "Daisan Hải Châu", province: "Đà Nẵng", address: "Hải Châu, Đà Nẵng", lat: 16.0544, lng: 108.2022, phone: "1900xxxx", salesperson: "NV Đà Nẵng", categories: ["Gạch ốp lát", "Sơn"] },
+  { id: "hn-caugiay", name: "Daisan Cầu Giấy", province: "Hà Nội", address: "Cầu Giấy, Hà Nội", lat: 21.0313, lng: 105.7872, phone: "1900989836", salesperson: "NV Hà Nội", categories: ["Gạch ốp lát", "Sơn", "Xi măng", "Thạch cao"] },
+  { id: "hn-hadong", name: "Daisan Hà Đông", province: "Hà Nội", address: "Hà Đông, Hà Nội", lat: 20.9710, lng: 105.7788, phone: "1800646498", salesperson: "NV Hà Nội", categories: ["Gạch ốp lát", "Xi măng"] },
+  { id: "hcm-q7", name: "Daisan Quận 7", province: "Hồ Chí Minh", address: "Quận 7, TP.HCM", lat: 10.7340, lng: 106.7215, phone: "0986258282", salesperson: "NV HCM", categories: ["Gạch ốp lát", "Sơn", "Thạch cao"] },
+  { id: "hcm-thuduc", name: "Daisan Thủ Đức", province: "Hồ Chí Minh", address: "TP Thủ Đức, TP.HCM", lat: 10.8499, lng: 106.7537, phone: "0986258282", salesperson: "NV HCM", categories: ["Gạch ốp lát", "Xi măng", "Sơn"] },
+  { id: "dn-haichau", name: "Daisan Hải Châu", province: "Đà Nẵng", address: "Hải Châu, Đà Nẵng", lat: 16.0544, lng: 108.2022, phone: "0986258282", salesperson: "NV Đà Nẵng", categories: ["Gạch ốp lát", "Sơn"] },
 ];
 
 function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
