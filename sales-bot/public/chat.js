@@ -79,7 +79,9 @@ function productCard(p) {
 // Màn rộng -> hiện sản phẩm ở CỘT PHẢI; màn hẹp/widget -> hiện trong khung chat.
 function isWide() { return window.matchMedia("(min-width: 760px)").matches; }
 
-// Lọc + sắp xếp + đổi lưới/danh sách cho panel phải (lọc trên kết quả đã tải).
+// Lọc + sắp xếp + phân trang "Xem thêm" + đổi lưới/danh sách cho panel phải.
+const PAGE = 12;
+let panelShown = PAGE;
 function applyPanel() {
   if (!productsGrid) return;
   let list = currentProducts.slice();
@@ -87,14 +89,25 @@ function applyPanel() {
   const sort = filterSort ? filterSort.value : "";
   if (sort === "asc") list.sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
   else if (sort === "desc") list.sort((a, b) => (b.price ?? -Infinity) - (a.price ?? -Infinity));
+
+  const total = list.length;
+  const shown = Math.min(panelShown, total);
   productsGrid.className = "sb-products-grid" + (panelView === "list" ? " list" : "");
   productsGrid.innerHTML = "";
-  if (!list.length) {
+  if (!total) {
     productsGrid.innerHTML = '<div class="sb-products-empty">Không có sản phẩm khớp bộ lọc.</div>';
   } else {
-    list.forEach((p) => productsGrid.appendChild(productCard(p)));
+    list.slice(0, shown).forEach((p) => productsGrid.appendChild(productCard(p)));
+    if (shown < total) {
+      const more = document.createElement("button");
+      more.type = "button";
+      more.className = "sb-more";
+      more.textContent = `Xem thêm (còn ${total - shown})`;
+      more.addEventListener("click", () => { panelShown += PAGE; applyPanel(); });
+      productsGrid.appendChild(more);
+    }
   }
-  if (productsCount) productsCount.textContent = list.length + " sản phẩm";
+  if (productsCount) productsCount.textContent = total ? `${shown}/${total} sản phẩm` : "0 sản phẩm";
 }
 
 function renderProducts(products) {
@@ -106,6 +119,7 @@ function renderProducts(products) {
     }
     if (filterSort) filterSort.value = "";
     if (productsBar) productsBar.hidden = false;
+    panelShown = PAGE;
     applyPanel();
     bubble("bot", `👉 Em đã hiển thị <b>${products.length}</b> sản phẩm ở cột bên phải, anh/chị lọc/xem giúp em nhé.`);
   } else {
@@ -118,8 +132,8 @@ function renderProducts(products) {
   }
 }
 
-if (filterCat) filterCat.addEventListener("change", applyPanel);
-if (filterSort) filterSort.addEventListener("change", applyPanel);
+if (filterCat) filterCat.addEventListener("change", () => { panelShown = PAGE; applyPanel(); });
+if (filterSort) filterSort.addEventListener("change", () => { panelShown = PAGE; applyPanel(); });
 if (viewGrid) viewGrid.addEventListener("click", () => { panelView = "grid"; viewGrid.classList.add("active"); viewList.classList.remove("active"); applyPanel(); });
 if (viewList) viewList.addEventListener("click", () => { panelView = "list"; viewList.classList.add("active"); viewGrid.classList.remove("active"); applyPanel(); });
 

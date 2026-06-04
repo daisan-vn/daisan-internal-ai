@@ -99,7 +99,7 @@ async function handleChat(request: Request, env: Env, cors: Record<string, strin
 
   const runTool = async (name: string, input: Record<string, unknown>): Promise<string> => {
     if (name === "search_products") {
-      const r = await searchProducts(env, String(input.query || ""), 24);
+      const r = await searchProducts(env, String(input.query || ""), 60);
       return JSON.stringify({ source: r.source, products: r.products });
     }
     if (name === "find_nearest_store") {
