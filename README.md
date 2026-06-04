@@ -13,7 +13,7 @@ trên tài liệu nội bộ** (RAG) và **luôn trích dẫn nguồn**.
 ## Kiến trúc
 
 ```
-Nhân viên ─▶ Cloudflare Access (chỉ email @daisan) ─▶ Worker (chat UI)
+Nhân viên ─▶ Cloudflare Access (email được duyệt) ─▶ troly.daisan.ai · Worker (chat UI)
                                                           │
                               ┌───────────────────────────┤
                               ▼                           ▼
@@ -28,7 +28,7 @@ Nhân viên ─▶ Cloudflare Access (chỉ email @daisan) ─▶ Worker (chat U
 | Vỏ UI/Worker | Worker + chat UI (`public/`) | giao diện, điều phối |
 | Não tri thức | **AutoRAG** (`env.AI.autorag`) | truy hồi tài liệu nội bộ |
 | LLM sinh câu | **Claude** qua AI Gateway `daisan-gw` | trả lời tiếng Việt + trích dẫn |
-| Đăng nhập | **Cloudflare Access** (Zero Trust) | chặn chỉ nhân viên Daisan |
+| Đăng nhập | **Cloudflare Access** (Zero Trust) | chỉ email được duyệt (allowlist) |
 | Kho tài liệu | **R2**, chia thư mục theo domain | lọc theo phòng ban |
 
 Luồng xử lý: `src/index.ts` nhận câu hỏi → `src/rag.ts` truy hồi tài liệu →
@@ -68,8 +68,45 @@ npm run deploy   # lên Cloudflare
 ```
 
 ### 5. Khóa truy cập (Cloudflare Access)
-Sau khi deploy, bọc Worker bằng **Zero Trust → Access → Application**, policy
-chỉ cho phép email thuộc domain Daisan. Không cần viết code.
+
+Bọc Worker bằng **Zero Trust → Access** để chỉ nhân sự được duyệt mới vào
+`troly.daisan.ai`. Không cần viết code.
+
+> ⚠️ **KHÔNG** dùng selector "Emails ending in @gmail.com" — nó cho **cả thế
+> giới** vào. Với Gmail phải **liệt kê từng email cụ thể** (hoặc dùng list).
+
+**Bước 1 — Gắn domain cho Worker**
+Dashboard → Workers → `daisan-internal-ai` → Settings → Domains & Routes →
+thêm custom domain `troly.daisan.ai`.
+
+**Bước 2 — Tạo Access Application**
+Zero Trust → **Access → Applications → Add an application → Self-hosted**
+- Application domain: `troly.daisan.ai`
+- Session duration: tùy (vd 24h)
+
+**Bước 3 — Cách đăng nhập**
+
+| Cách | Setup | Trải nghiệm |
+| --- | --- | --- |
+| **One-time PIN** (khuyên dùng để bắt đầu) | Bật sẵn, 0 cấu hình | Nhập email → nhận mã 6 số qua mail → vào |
+| **Google login** | Cần nối Google làm Identity Provider | Bấm "Đăng nhập bằng Google" |
+
+One-time PIN hợp với các Gmail rời rạc — không cần dựng IdP.
+
+**Bước 4 — Policy: Allow + liệt kê email**
+Trong app → Policies → Add → Action = **Allow**:
+- Selector **Emails** → dán danh sách:
+  ```
+  nhamphongdaijsc@gmail.com
+  nhanvien2@gmail.com
+  nhanvien3@gmail.com
+  ```
+
+**Mẹo quản lý khi nhiều người (nên làm sớm)**
+Thay vì sửa policy mỗi lần thêm người, tạo **danh sách dùng lại**:
+Zero Trust → **My Team → Lists** → tạo list `troly-users` (kiểu Emails) →
+thêm tất cả email. Trong policy chọn selector **"Emails in list" → troly-users**.
+→ Sau này thêm/bớt người chỉ cần sửa list, không đụng policy.
 
 ---
 
