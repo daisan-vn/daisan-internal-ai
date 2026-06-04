@@ -82,6 +82,7 @@ function isWide() { return window.matchMedia("(min-width: 760px)").matches; }
 // Lọc + sắp xếp + phân trang "Xem thêm" + đổi lưới/danh sách cho panel phải.
 const PAGE = 12;
 let panelShown = PAGE;
+let panelTotal = 0;
 function applyPanel() {
   if (!productsGrid) return;
   let list = currentProducts.slice();
@@ -91,6 +92,7 @@ function applyPanel() {
   else if (sort === "desc") list.sort((a, b) => (b.price ?? -Infinity) - (a.price ?? -Infinity));
 
   const total = list.length;
+  panelTotal = total;
   const shown = Math.min(panelShown, total);
   productsGrid.className = "sb-products-grid" + (panelView === "list" ? " list" : "");
   productsGrid.innerHTML = "";
@@ -134,6 +136,12 @@ function renderProducts(products) {
 
 if (filterCat) filterCat.addEventListener("change", () => { panelShown = PAGE; applyPanel(); });
 if (filterSort) filterSort.addEventListener("change", () => { panelShown = PAGE; applyPanel(); });
+// Tự tải thêm khi cuộn gần cuối cột phải (load xuống).
+if (productsGrid) productsGrid.addEventListener("scroll", () => {
+  if (panelShown < panelTotal && productsGrid.scrollTop + productsGrid.clientHeight >= productsGrid.scrollHeight - 120) {
+    panelShown += PAGE; applyPanel();
+  }
+});
 if (viewGrid) viewGrid.addEventListener("click", () => { panelView = "grid"; viewGrid.classList.add("active"); viewList.classList.remove("active"); applyPanel(); });
 if (viewList) viewList.addEventListener("click", () => { panelView = "list"; viewList.classList.add("active"); viewGrid.classList.remove("active"); applyPanel(); });
 
