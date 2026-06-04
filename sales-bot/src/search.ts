@@ -31,7 +31,9 @@ async function loadShopify(env: Env): Promise<Product[]> {
   const domain = (env.SHOPIFY_DOMAIN || "").replace(/^https?:\/\//, "").replace(/\/+$/, "");
   const out: Product[] = [];
   for (let page = 1; page <= 6; page++) {
-    const res = await fetch(`https://${domain}/products.json?limit=250&page=${page}`, { headers: { accept: "application/json" } });
+    const res = await fetch(`https://${domain}/products.json?limit=250&page=${page}`, {
+      headers: { accept: "application/json", "user-agent": "DaisanSalesBot/1.0 (+https://salesbot.daisan.ai)" },
+    });
     if (!res.ok) break;
     const data = (await res.json()) as { products?: Array<Record<string, unknown>> };
     const prods = data.products ?? [];
