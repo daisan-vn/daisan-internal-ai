@@ -18,18 +18,19 @@ export async function retrieve(
 ): Promise<RetrievedChunk[]> {
   const topK = Number(env.RAG_TOP_K) || 8;
   const threshold = Number(env.RAG_SCORE_THRESHOLD) || 0;
-  const maxResults = domain ? Math.min(topK * 4, 30) : topK;
+  // Lấy dư một ít khi lọc theo phòng ban, nhưng không quá nhiều (đỡ tốn thời gian).
+  const maxResults = domain ? Math.min(topK * 2, 16) : topK;
 
   const ar = env.AI.autorag(env.AUTORAG_NAME);
-  const base = { query, max_num_results: maxResults, ranking_options: { score_threshold: threshold } };
-  // rewrite_query cải thiện truy hồi nhưng cần model rewrite của AutoRAG hoạt động.
-  // Nếu bước rewrite lỗi (5006: thiếu prompt/messages) -> truy hồi lại với query gốc.
-  let result: Awaited<ReturnType<typeof ar.search>>;
-  try {
-    result = await ar.search({ ...base, rewrite_query: true } as never);
-  } catch {
-    result = await ar.search({ ...base, rewrite_query: false } as never);
-  }
+  // rewrite_query=false: bỏ bước AutoRAG gọi thêm 1 lượt model để viết lại câu hỏi
+  // -> nhanh hơn rõ rệt mỗi truy vấn. Với câu tiếng Việt nhiều từ khóa, truy hồi
+  // theo query gốc thường đã đủ tốt.
+  const result = await ar.search({
+    query,
+    max_num_results: maxResults,
+    ranking_options: { score_threshold: threshold },
+    rewrite_query: false,
+  } as never);
 
   let chunks: RetrievedChunk[] = [];
   for (const doc of result.data ?? []) {

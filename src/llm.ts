@@ -67,6 +67,16 @@ async function postClaude(env: Env, body: Record<string, unknown>): Promise<Resp
 }
 
 /**
+ * Bọc system prompt dưới dạng block có cache_control để Anthropic CACHE phần
+ * "đầu bài" tĩnh (hướng dẫn + tài liệu nội bộ + danh sách công cụ). Trong một
+ * câu hỏi số liệu, agent gọi Claude nhiều lượt với cùng phần đầu này -> các lượt
+ * sau dùng lại cache, nhanh hơn và rẻ hơn rõ rệt (không đổi chất lượng trả lời).
+ */
+function cachedSystem(system: string) {
+  return [{ type: "text", text: system, cache_control: { type: "ephemeral" } }];
+}
+
+/**
  * Gọi Claude (Anthropic Messages API) ở chế độ streaming qua AI Gateway,
  * trả về async generator các đoạn text để Worker đẩy SSE về client.
  */
@@ -78,7 +88,7 @@ export async function* streamClaude(
   const res = await postClaude(env, {
     model: env.DEFAULT_MODEL,
     max_tokens: 1024,
-    system,
+    system: cachedSystem(system),
     messages,
     stream: true,
   });
@@ -153,7 +163,7 @@ export async function* streamClaudeAgent(
     const res = await postClaude(env, {
       model: env.DEFAULT_MODEL,
       max_tokens: 2048,
-      system,
+      system: cachedSystem(system),
       messages: convo,
       tools,
       stream: true,
