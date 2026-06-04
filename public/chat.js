@@ -499,6 +499,7 @@ async function openAssign() {
 if (assignBtn) assignBtn.addEventListener("click", () => { closeSidebar(); openAssign(); });
 if (asgCancel) asgCancel.addEventListener("click", closeAssign);
 if (assignModal) assignModal.addEventListener("click", (e) => { if (e.target === assignModal) closeAssign(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && assignModal && !assignModal.hidden) closeAssign(); });
 if (asgSubmit) asgSubmit.addEventListener("click", async () => {
   const name = asgTitle.value.trim();
   const assigneeIds = [...asgUsers.selectedOptions].map((o) => Number(o.value));
