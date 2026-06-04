@@ -27,6 +27,8 @@ export function odooSystemNote(today: string): string {
 - Khi người dùng hỏi SỐ LIỆU/TÌNH TRẠNG THỰC TẾ (đơn hàng, doanh thu, công nợ, tồn kho, khách hàng, hóa đơn, sản phẩm…), HÃY GỌI CÔNG CỤ để lấy dữ liệu thật rồi mới trả lời. Đừng đoán số.
 - Đây là kết nối CHỈ ĐỌC: bạn KHÔNG thể tạo/sửa/xóa gì trong Odoo. Nếu người dùng yêu cầu thay đổi dữ liệu, hãy giải thích trợ lý chỉ tra cứu, không chỉnh sửa.
 - Có thể gọi nhiều bước: dùng odoo_fields_get khi chưa chắc tên field, search_read để lấy chi tiết, read_group để tổng hợp. Ưu tiên chỉ lấy field cần thiết.
+- HÃY TIẾT KIỆM SỐ BƯỚC (tối đa ~8 lượt gọi). Ưu tiên odoo_read_group để TỔNG HỢP trong 1-2 lượt thay vì đọc từng bản ghi rồi tự cộng. Chỉ dùng odoo_fields_get khi thật sự chưa rõ tên field. Nếu một truy vấn bị "Access Denied" hoặc lỗi, ĐỪNG thử lại nhiều lần — báo ngắn gọn cho người dùng và đề xuất kiểm tra quyền, rồi dừng.
+- Số dư tiền (tiền mặt + ngân hàng): tổng hợp trên 'account.move.line' bằng read_group field ["balance:sum"], lọc theo tài khoản thuộc loại tiền (account_id.account_type = 'asset_cash') và bút toán đã ghi sổ (parent_state = 'posted'); nếu không chắc cấu trúc, hỏi lại người dùng thay vì tra cứu lan man.
 - Đây là hệ thống ĐA CÔNG TY (DSGroup, Daisan Phân Phối Hà Nội, Daisan PP HCM-MEDICI, Daisan ASIA, Daisan TMDT…); khi liên quan, nói rõ số liệu thuộc công ty nào (field company_id) hoặc nêu là tổng hợp toàn tập đoàn.
 - Tiền tệ là VND: định dạng có phân tách hàng nghìn và đơn vị "₫" (vd 1.250.000 ₫).
 - Hôm nay là ${today}. Quy đổi mốc thời gian tương đối dựa trên ngày này (dùng định dạng 'YYYY-MM-DD' trong domain).

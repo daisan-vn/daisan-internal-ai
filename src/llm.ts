@@ -141,7 +141,7 @@ export async function* streamClaudeAgent(
   tools: ToolDef[],
   runTool: (name: string, input: Record<string, unknown>) => Promise<string>,
   describe: (name: string, input: Record<string, unknown>) => string,
-  maxRounds = 6,
+  maxRounds = 8,
 ): AsyncGenerator<AgentEvent> {
   // Bản làm việc của hội thoại theo định dạng block của Anthropic.
   const convo: Array<{ role: string; content: unknown }> = messages.map((m) => ({
@@ -249,5 +249,34 @@ export async function* streamClaudeAgent(
     convo.push({ role: "user", content: results });
   }
 
-  yield { type: "text", text: "\n\n_(Đã đạt giới hạn số bước tra cứu, dừng để tránh vòng lặp.)_" };
+  // Hết số vòng mà Claude vẫn muốn gọi tool -> KHÔNG cấp tool nữa, ép tổng hợp
+  // câu trả lời từ dữ liệu đã thu thập (tránh dừng cụt, vẫn cho ra kết quả hữu ích).
+  const finalRes = await postClaude(env, {
+    model: env.DEFAULT_MODEL,
+    max_tokens: 2048,
+    system: `${system}\n\nĐÃ ĐỦ BƯỚC TRA CỨU. Hãy TỔNG HỢP và TRẢ LỜI NGAY dựa trên dữ liệu đã lấy ở trên; KHÔNG gọi thêm công cụ. Nếu dữ liệu chưa đủ để kết luận chắc chắn, nói rõ phần nào còn thiếu và gợi ý người dùng thu hẹp câu hỏi.`,
+    messages: convo,
+    stream: true,
+  });
+  const finalReader = finalRes.body!.pipeThrough(new TextDecoderStream()).getReader();
+  let finalBuf = "";
+  while (true) {
+    const { value, done } = await finalReader.read();
+    if (done) break;
+    finalBuf += value;
+    let nl: number;
+    while ((nl = finalBuf.indexOf("\n")) !== -1) {
+      const line = finalBuf.slice(0, nl).trim();
+      finalBuf = finalBuf.slice(nl + 1);
+      if (!line.startsWith("data:")) continue;
+      try {
+        const ev = JSON.parse(line.slice(5).trim());
+        if (ev.type === "content_block_delta" && ev.delta?.type === "text_delta") {
+          yield { type: "text", text: ev.delta.text as string };
+        }
+      } catch {
+        // bỏ qua dòng không phải JSON
+      }
+    }
+  }
 }
