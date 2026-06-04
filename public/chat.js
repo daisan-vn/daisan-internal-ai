@@ -445,8 +445,14 @@ async function doDelete(id) {
 async function loadMe() {
   try {
     const res = await fetch("/api/me");
-    const { email } = await res.json();
+    const { email, departments } = await res.json();
     if (email && email !== "dev@local") userEmailEl.textContent = email;
+    // Phân quyền: chỉ giữ các phòng người dùng được phép (luôn giữ "Tất cả").
+    if (Array.isArray(departments)) {
+      [...domainSel.options].forEach((o) => {
+        if (o.value && !departments.includes(o.value)) o.remove();
+      });
+    }
   } catch {}
 }
 

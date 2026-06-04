@@ -78,12 +78,14 @@ loadDocs();
 const tabBtns = document.querySelectorAll(".tab");
 const tabAccessBtn = document.getElementById("tabAccessBtn");
 const tabStatsBtn = document.getElementById("tabStatsBtn");
+const tabGrantsBtn = document.getElementById("tabGrantsBtn");
 const sectionByTab = {
   docs: document.getElementById("tab-docs"),
   stats: document.getElementById("tab-stats"),
+  grants: document.getElementById("tab-grants"),
   access: document.getElementById("tab-access"),
 };
-let accessLoaded = false, statsLoaded = false;
+let accessLoaded = false, statsLoaded = false, grantsLoaded = false;
 
 tabBtns.forEach((t) => t.addEventListener("click", () => {
   const name = t.dataset.tab;
@@ -91,6 +93,7 @@ tabBtns.forEach((t) => t.addEventListener("click", () => {
   for (const k in sectionByTab) if (sectionByTab[k]) sectionByTab[k].hidden = k !== name;
   if (name === "access" && !accessLoaded) { accessLoaded = true; loadAccess(); }
   if (name === "stats" && !statsLoaded) { statsLoaded = true; loadStats(); }
+  if (name === "grants" && !grantsLoaded) { grantsLoaded = true; loadGrants(); }
 }));
 
 // Ẩn các tab quản trị nếu không phải quản trị viên.
@@ -100,9 +103,80 @@ tabBtns.forEach((t) => t.addEventListener("click", () => {
     if (me && me.isAdmin === false) {
       if (tabAccessBtn) tabAccessBtn.style.display = "none";
       if (tabStatsBtn) tabStatsBtn.style.display = "none";
+      if (tabGrantsBtn) tabGrantsBtn.style.display = "none";
     }
   } catch {}
 })();
+
+/* ===================== Phân quyền phòng ban ===================== */
+const grEmail = document.getElementById("grEmail");
+const grChecks = document.getElementById("grChecks");
+const grSave = document.getElementById("grSave");
+const grStatus = document.getElementById("grStatus");
+const grRows = document.getElementById("grRows");
+const grEmpty = document.getElementById("grEmpty");
+const grRestricted = document.getElementById("grRestricted");
+let grRestrictedList = [];
+let grLabels = {};
+
+async function loadGrants() {
+  const allowed = document.getElementById("grantsAllowed");
+  const denied = document.getElementById("grantsDenied");
+  try {
+    const res = await fetch("/api/admin/grants");
+    if (res.status === 403) { if (allowed) allowed.style.display = "none"; if (denied) denied.hidden = false; return; }
+    if (allowed) allowed.style.display = ""; if (denied) denied.hidden = true;
+    const d = await res.json();
+    grRestrictedList = d.restricted || [];
+    grLabels = d.labels || {};
+
+    grRestricted.innerHTML = grRestrictedList.length
+      ? "Phòng hạn chế hiện tại: " + grRestrictedList.map((x) => "🔒 <b>" + esc(grLabels[x] || x) + "</b>").join(" · ")
+      : "<i>Chưa cấu hình phòng hạn chế nào (RESTRICTED_DEPTS trống) — mọi phòng đang mở.</i>";
+
+    grChecks.innerHTML = grRestrictedList
+      .map((x) => '<label class="note" style="display:flex;align-items:center;gap:5px"><input type="checkbox" class="grck" value="' + x + '"> ' + esc(grLabels[x] || x) + "</label>")
+      .join("") || '<span class="note">(không có phòng hạn chế)</span>';
+
+    const grants = d.grants || [];
+    grEmpty.style.display = grants.length ? "none" : "block";
+    grRows.innerHTML = "";
+    for (const g of grants) {
+      const tr = document.createElement("tr");
+      const badges = (g.depts || []).map((x) => '<span style="background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:2px 8px;margin-right:4px;font-size:12px">' + esc(grLabels[x] || x) + "</span>").join("");
+      tr.innerHTML = "<td>" + esc(g.user_email) + "</td><td>" + (badges || "—") + "</td>";
+      const td = document.createElement("td");
+      const edit = document.createElement("button");
+      edit.className = "del"; edit.textContent = "Sửa";
+      edit.addEventListener("click", () => {
+        grEmail.value = g.user_email;
+        grChecks.querySelectorAll(".grck").forEach((c) => { c.checked = (g.depts || []).includes(c.value); });
+        grEmail.focus();
+      });
+      td.appendChild(edit); tr.appendChild(td);
+      grRows.appendChild(tr);
+    }
+  } catch {}
+}
+
+if (grSave) grSave.addEventListener("click", async () => {
+  const email = (grEmail.value || "").trim().toLowerCase();
+  if (!email) { grStatus.textContent = "⚠️ Nhập email trước."; grStatus.style.color = "#ff8a8a"; return; }
+  grSave.disabled = true; grStatus.textContent = "Đang lưu…"; grStatus.style.color = "var(--muted)";
+  try {
+    const checks = [...grChecks.querySelectorAll(".grck")];
+    for (const c of checks) {
+      await fetch("/api/admin/grants", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email, dept: c.value, on: c.checked }),
+      });
+    }
+    grStatus.textContent = "✅ Đã lưu quyền cho " + email; grStatus.style.color = "#4ade80";
+    grEmail.value = ""; checks.forEach((c) => (c.checked = false));
+    loadGrants();
+  } catch (e) { grStatus.textContent = "❌ " + e.message; grStatus.style.color = "#ff8a8a"; }
+  grSave.disabled = false;
+});
 
 const accStats = document.getElementById("accStats");
 const accRows = document.getElementById("accRows");

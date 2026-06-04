@@ -7,6 +7,7 @@ import { recordAccess, isAdmin, listAccess } from "./access";
 import { gdriveConfigured, runSyncWithStatus, readSyncStatus } from "./gdrive";
 import { getStats } from "./stats";
 import { setFeedback } from "./feedback";
+import { blockedDeptsFor, allowedDeptsFor, listGrants, setGrant } from "./rbac";
 import * as hist from "./history";
 
 export default {
@@ -23,7 +24,26 @@ export default {
     if (path === "/api/me") {
       const email = hist.userEmail(request);
       ctx.waitUntil(recordAccess(env, request));
-      return Response.json({ email, isAdmin: isAdmin(env, email) });
+      return Response.json({
+        email,
+        isAdmin: isAdmin(env, email),
+        departments: await allowedDeptsFor(env, email),
+      });
+    }
+
+    // Phân quyền phòng ban (chỉ admin). GET xem cấu hình, POST cấp/gỡ 1 quyền.
+    if (path === "/api/admin/grants") {
+      if (!isAdmin(env, hist.userEmail(request))) {
+        return Response.json({ error: "Bạn không có quyền." }, { status: 403 });
+      }
+      if (request.method === "GET") return Response.json(await listGrants(env));
+      if (request.method === "POST") {
+        let b: { email?: string; dept?: string; on?: boolean };
+        try { b = await request.json(); } catch { return Response.json({ error: "JSON không hợp lệ" }, { status: 400 }); }
+        if (!b.email || !b.dept) return Response.json({ error: "Thiếu email/dept" }, { status: 400 });
+        await setGrant(env, b.email, b.dept, !!b.on);
+        return Response.json({ ok: true });
+      }
     }
 
     // Lịch sử đăng nhập (chỉ quản trị viên). days=0 -> tất cả.
@@ -184,8 +204,11 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext): Pr
   }
   await hist.addMessageRow(env, conversationId, "user", lastUser.content);
 
-  // 1) Truy hồi tài liệu nội bộ liên quan.
-  const chunks = await retrieve(env, lastUser.content, body.domain);
+  // 1) Truy hồi tài liệu nội bộ liên quan (áp dụng phân quyền phòng ban).
+  const blocked = await blockedDeptsFor(env, email);
+  // Nếu người dùng chọn đúng phòng họ không được phép -> bỏ lựa chọn đó (sẽ bị chặn dưới).
+  const domain = body.domain && blocked.includes(body.domain) ? undefined : body.domain;
+  const chunks = await retrieve(env, lastUser.content, domain, blocked);
   const context = buildContext(chunks);
   const useOdoo = odooConfigured(env);
   const today = new Date().toISOString().slice(0, 10);

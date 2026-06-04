@@ -15,6 +15,9 @@ export interface Env {
   // Danh sách email quản trị (phân tách bằng dấu phẩy) được xem trang admin/lịch sử
   // đăng nhập. Để trống = mọi user qua Access đều xem được (hành vi cũ).
   ADMIN_EMAILS?: string;
+  // Phòng ban nhạy cảm (phân tách bằng dấu phẩy): chỉ admin/người được cấp mới xem
+  // tài liệu. Để trống = mọi phòng đều mở. Xem src/rbac.ts.
+  RESTRICTED_DEPTS?: string;
 
   // secrets
   ANTHROPIC_API_KEY: string;

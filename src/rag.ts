@@ -15,11 +15,12 @@ export async function retrieve(
   env: Env,
   query: string,
   domain?: string,
+  blocked: string[] = [],
 ): Promise<RetrievedChunk[]> {
   const topK = Number(env.RAG_TOP_K) || 8;
   const threshold = Number(env.RAG_SCORE_THRESHOLD) || 0;
-  // Lấy dư một ít khi lọc theo phòng ban, nhưng không quá nhiều (đỡ tốn thời gian).
-  const maxResults = domain ? Math.min(topK * 2, 16) : topK;
+  // Lấy dư khi cần lọc (theo phòng ban hoặc loại bỏ phòng bị chặn) để vẫn đủ kết quả.
+  const maxResults = domain || blocked.length ? Math.min(topK * 2, 16) : topK;
 
   const ar = env.AI.autorag(env.AUTORAG_NAME);
   // rewrite_query=false: bỏ bước AutoRAG gọi thêm 1 lượt model để viết lại câu hỏi
@@ -46,7 +47,13 @@ export async function retrieve(
     });
   }
 
-  // Lọc theo phòng ban (tiền tố thư mục). Rỗng -> giữ nguyên để vẫn hữu ích.
+  // Phân quyền: loại bỏ tài liệu thuộc phòng bị chặn (BẮT BUỘC, không nhân nhượng).
+  if (blocked.length) {
+    const block = new Set(blocked);
+    chunks = chunks.filter((c) => !block.has(c.filename.split("/")[0]));
+  }
+
+  // Lọc theo phòng ban người dùng chọn (tiền tố thư mục). Rỗng -> giữ nguyên.
   if (domain) {
     const prefix = `${domain}/`;
     const filtered = chunks.filter((c) => c.filename.startsWith(prefix));

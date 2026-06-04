@@ -42,6 +42,14 @@ CREATE TABLE IF NOT EXISTS feedback (
 );
 CREATE INDEX IF NOT EXISTS idx_feedback_val ON feedback (value, created_at DESC);
 
+-- Phân quyền phòng ban: user_email được cấp xem tài liệu phòng hạn chế nào.
+CREATE TABLE IF NOT EXISTS dept_grants (
+  user_email TEXT NOT NULL,
+  dept       TEXT NOT NULL,         -- ketoan | mua | ... (phòng nằm trong RESTRICTED_DEPTS)
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (user_email, dept)
+);
+
 -- Trạng thái đồng bộ Google Drive -> R2 (1 dòng id='drive').
 CREATE TABLE IF NOT EXISTS sync_status (
   id          TEXT PRIMARY KEY,

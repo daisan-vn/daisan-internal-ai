@@ -52,6 +52,7 @@
       <div class="tabs">
         <button class="tab active" data-tab="docs">📄 Tài liệu</button>
         <button class="tab" data-tab="stats" id="tabStatsBtn">📊 Thống kê</button>
+        <button class="tab" data-tab="grants" id="tabGrantsBtn">👥 Phân quyền</button>
         <button class="tab" data-tab="access" id="tabAccessBtn">🔐 Lịch sử đăng nhập</button>
       </div>
 
@@ -131,6 +132,32 @@
           </div>
         </div>
         <div id="statsDenied" class="denied" hidden>🔒 Bạn không có quyền xem thống kê.<br /><span class="note">Chỉ tài khoản quản trị (cấu hình <b>ADMIN_EMAILS</b>) mới xem được.</span></div>
+      </section>
+
+      <!-- TAB: Phân quyền phòng ban -->
+      <section id="tab-grants" hidden>
+        <div id="grantsAllowed">
+          <div class="card2">
+            <h2>👥 Phân quyền xem tài liệu theo phòng ban</h2>
+            <p class="note">Phòng <b>hạn chế</b> 🔒 chỉ admin và người được cấp dưới đây mới xem được tài liệu. Các phòng khác mở cho mọi nhân viên.</p>
+            <p class="note" id="grRestricted" style="margin-top:8px"></p>
+            <div class="row" style="margin-top:16px; align-items:flex-end; gap:16px">
+              <label class="note" style="display:flex;flex-direction:column;gap:6px">Email nhân viên
+                <input class="inp" id="grEmail" placeholder="nguoidung@gmail.com" style="min-width:260px" />
+              </label>
+              <div id="grChecks" class="row" style="gap:14px"></div>
+              <button class="btn-primary" id="grSave">Lưu quyền</button>
+            </div>
+            <div class="status" id="grStatus"></div>
+            <p class="note" style="margin-top:10px">💡 Bỏ tick hết rồi Lưu = gỡ toàn bộ quyền của người đó.</p>
+          </div>
+          <div class="card2">
+            <h2>Đã cấp quyền</h2>
+            <table><thead><tr><th>Email</th><th>Phòng hạn chế được xem</th><th></th></tr></thead><tbody id="grRows"></tbody></table>
+            <p class="note" id="grEmpty" style="display:none">Chưa cấp cho ai — phòng hạn chế hiện chỉ admin xem được.</p>
+          </div>
+        </div>
+        <div id="grantsDenied" class="denied" hidden>🔒 Chỉ quản trị viên mới xem được mục này.</div>
       </section>
 
       <!-- TAB: Lịch sử đăng nhập -->

@@ -51,6 +51,10 @@
     // Thêm email quản lý khác vào đây nếu muốn cho họ xem. Để trống = mọi người xem được.
     "ADMIN_EMAILS": "nhamphongdaijsc@gmail.com",
 
+    // Phòng ban NHẠY CẢM: chỉ admin hoặc người được cấp quyền (tab Phân quyền) mới
+    // xem được tài liệu của phòng đó. Phòng không liệt kê = mở cho mọi nhân viên.
+    "RESTRICTED_DEPTS": "ketoan,mua",
+
     // --- Google Drive sync (CHỈ ĐỌC) — xem src/gdrive.ts ---
     // ID thư mục Drive cần đồng bộ (lấy từ URL thư mục; nhiều thì cách nhau dấu phẩy).
     // Khóa service account đặt riêng: wrangler secret put GDRIVE_SA_JSON
