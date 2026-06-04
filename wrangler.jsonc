@@ -38,6 +38,10 @@
     // URL/DB/UID là cấu hình thường; API key + login đặt bằng `wrangler secret put`.
     "ODOO_URL": "https://dserp.odoo.com",
     "ODOO_DB": "daisan-vn-daisanerp-main-22763695",
+    // Đăng nhập bằng login -> Odoo trả về ĐÚNG uid của chủ nhân API key.
+    // (Ưu tiên hơn ODOO_UID để tránh "Access Denied" do uid để cứng bị sai.)
+    "ODOO_LOGIN": "nhamphongdaijsc@gmail.com",
+    // Giữ làm fallback; chỉ dùng khi không có ODOO_LOGIN.
     "ODOO_UID": "6",
 
     // Email được xem trang admin/lịch sử đăng nhập (phân tách bằng dấu phẩy).

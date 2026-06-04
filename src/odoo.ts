@@ -66,22 +66,31 @@ async function jsonRpc(
 
 async function getUid(env: Env): Promise<number> {
   if (cachedUid && cachedUid > 0) return cachedUid;
+
+  // ƯU TIÊN xác thực bằng login + API key: Odoo trả về ĐÚNG uid của chủ nhân key.
+  // (Để cứng ODOO_UID dễ sai -> uid không khớp key -> Odoo từ chối TẤT CẢ với
+  // lỗi "Access Denied", dù tài khoản có đủ quyền. Đây là bẫy phổ biến.)
+  if (env.ODOO_LOGIN) {
+    const uid = await jsonRpc(env, "common", "authenticate", [
+      env.ODOO_DB,
+      env.ODOO_LOGIN,
+      env.ODOO_API_KEY,
+      {},
+    ]);
+    if (typeof uid !== "number" || uid <= 0) {
+      throw new Error("Đăng nhập Odoo thất bại (kiểm tra DB / login / API key).");
+    }
+    cachedUid = uid;
+    return uid;
+  }
+
+  // Không có login -> dùng UID cấu hình sẵn (kém an toàn, chỉ nên dùng khi chắc chắn khớp).
   const fixed = Number(env.ODOO_UID);
   if (fixed > 0) {
     cachedUid = fixed;
     return fixed;
   }
-  const uid = await jsonRpc(env, "common", "authenticate", [
-    env.ODOO_DB,
-    env.ODOO_LOGIN,
-    env.ODOO_API_KEY,
-    {},
-  ]);
-  if (typeof uid !== "number" || uid <= 0) {
-    throw new Error("Đăng nhập Odoo thất bại (kiểm tra DB / login / API key).");
-  }
-  cachedUid = uid;
-  return uid;
+  throw new Error("Chưa cấu hình ODOO_LOGIN (khuyến nghị) hoặc ODOO_UID để kết nối Odoo.");
 }
 
 /**
@@ -261,4 +270,66 @@ export async function runOdooTool(
     default:
       throw new Error(`Công cụ Odoo không tồn tại: ${name}`);
   }
+}
+
+/* ----------------------------- Chẩn đoán kết nối Odoo ----------------------------- */
+
+function errMsg(e: unknown): string {
+  return e instanceof Error ? e.message : String(e);
+}
+
+/**
+ * Kiểm tra sức khỏe kết nối Odoo, dùng cho trang /api/admin/odoo-check.
+ * Trả về JSON dễ đọc giúp phân biệt 2 loại lỗi:
+ *  - uid không khớp key  -> đọc res.users (chính mình) cũng "Access Denied".
+ *  - thiếu quyền module  -> đọc res.users OK nhưng sale.order/account.move bị từ chối.
+ */
+export async function odooDiagnose(env: Env): Promise<Record<string, unknown>> {
+  cachedUid = null; // luôn xác thực lại để phản ánh cấu hình hiện tại
+  const out: Record<string, unknown> = {
+    configured: odooConfigured(env),
+    url: env.ODOO_URL ?? null,
+    db: env.ODOO_DB ?? null,
+    login: env.ODOO_LOGIN ?? null,
+    configuredUid: env.ODOO_UID ?? null,
+  };
+
+  try {
+    out.version = await jsonRpc(env, "common", "version", []);
+  } catch (e) {
+    out.version_error = errMsg(e);
+  }
+
+  let uid: number | null = null;
+  try {
+    uid = await getUid(env);
+    out.resolvedUid = uid;
+    out.uidNote =
+      env.ODOO_UID && Number(env.ODOO_UID) !== uid
+        ? `⚠️ ODOO_UID cấu hình (${env.ODOO_UID}) KHÁC uid thật (${uid}). Đã dùng uid thật nhờ đăng nhập bằng login.`
+        : "uid khớp.";
+  } catch (e) {
+    out.auth_error = errMsg(e);
+    return out; // không xác thực được thì dừng
+  }
+
+  try {
+    out.whoami = await odooExecute(env, "res.users", "read", [[uid]], {
+      fields: ["login", "name", "company_ids"],
+    });
+  } catch (e) {
+    out.whoami_error = errMsg(e);
+  }
+
+  const tests: Record<string, string> = {};
+  for (const model of ["sale.order", "account.move", "stock.quant", "res.partner"]) {
+    try {
+      const c = await odooExecute(env, model, "search_count", [[]]);
+      tests[model] = `OK (${c} bản ghi)`;
+    } catch (e) {
+      tests[model] = `LỖI: ${errMsg(e)}`;
+    }
+  }
+  out.tests = tests;
+  return out;
 }

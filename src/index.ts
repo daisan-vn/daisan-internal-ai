@@ -2,7 +2,7 @@ import type { ChatRequest, Env } from "./types";
 import { retrieve } from "./rag";
 import { streamClaude, streamClaudeAgent } from "./llm";
 import { SYSTEM_PROMPT, buildContext, odooSystemNote } from "./prompt";
-import { ODOO_TOOLS, runOdooTool, describeOdooTool, odooConfigured } from "./odoo";
+import { ODOO_TOOLS, runOdooTool, describeOdooTool, odooConfigured, odooDiagnose } from "./odoo";
 import { recordAccess, isAdmin, listAccess } from "./access";
 import { gdriveConfigured, runSyncWithStatus, readSyncStatus } from "./gdrive";
 import * as hist from "./history";
@@ -113,6 +113,16 @@ export default {
         customMetadata: { uploadedBy: hist.userEmail(request) },
       });
       return Response.json({ ok: true, key });
+    }
+
+    // Chẩn đoán kết nối Odoo (chỉ admin). Mở thẳng trên trình duyệt để xem JSON.
+    if (path === "/api/admin/odoo-check" && request.method === "GET") {
+      if (!isAdmin(env, hist.userEmail(request))) {
+        return Response.json({ error: "Bạn không có quyền." }, { status: 403 });
+      }
+      return Response.json(await odooDiagnose(env), {
+        headers: { "cache-control": "no-store" },
+      });
     }
 
     if (path === "/api/chat" && request.method === "POST") {
