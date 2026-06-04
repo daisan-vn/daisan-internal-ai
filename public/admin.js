@@ -99,15 +99,17 @@ const tabStatsBtn = document.getElementById("tabStatsBtn");
 const tabGrantsBtn = document.getElementById("tabGrantsBtn");
 const tabReportsBtn = document.getElementById("tabReportsBtn");
 const tabAlertsBtn = document.getElementById("tabAlertsBtn");
+const tabCrmBtn = document.getElementById("tabCrmBtn");
 const sectionByTab = {
   docs: document.getElementById("tab-docs"),
   stats: document.getElementById("tab-stats"),
   reports: document.getElementById("tab-reports"),
   alerts: document.getElementById("tab-alerts"),
   grants: document.getElementById("tab-grants"),
+  crm: document.getElementById("tab-crm"),
   access: document.getElementById("tab-access"),
 };
-let accessLoaded = false, statsLoaded = false, grantsLoaded = false, reportsLoaded = false, alertsLoaded = false;
+let accessLoaded = false, statsLoaded = false, grantsLoaded = false, reportsLoaded = false, alertsLoaded = false, crmLoaded = false;
 
 tabBtns.forEach((t) => t.addEventListener("click", () => {
   const name = t.dataset.tab;
@@ -118,6 +120,7 @@ tabBtns.forEach((t) => t.addEventListener("click", () => {
   if (name === "grants" && !grantsLoaded) { grantsLoaded = true; loadGrants(); }
   if (name === "reports" && !reportsLoaded) { reportsLoaded = true; loadReports(); }
   if (name === "alerts" && !alertsLoaded) { alertsLoaded = true; loadAlerts(); }
+  if (name === "crm" && !crmLoaded) { crmLoaded = true; loadCrm(); }
 }));
 
 // Ẩn các tab quản trị nếu không phải quản trị viên.
@@ -130,9 +133,67 @@ tabBtns.forEach((t) => t.addEventListener("click", () => {
       if (tabGrantsBtn) tabGrantsBtn.style.display = "none";
       if (tabReportsBtn) tabReportsBtn.style.display = "none";
       if (tabAlertsBtn) tabAlertsBtn.style.display = "none";
+      if (tabCrmBtn) tabCrmBtn.style.display = "none";
     }
   } catch {}
 })();
+
+/* ===================== Định tuyến CRM (nhóm sản phẩm) ===================== */
+const crmGroup = document.getElementById("crmGroup");
+const crmUser = document.getElementById("crmUser");
+const crmSave = document.getElementById("crmSave");
+const crmStatus = document.getElementById("crmStatus");
+const crmRows = document.getElementById("crmRows");
+const crmEmpty = document.getElementById("crmEmpty");
+
+async function loadCrm() {
+  const allowed = document.getElementById("crmAllowed");
+  const denied = document.getElementById("crmDenied");
+  try {
+    const res = await fetch("/api/admin/crm-routing");
+    if (res.status === 403) { if (allowed) allowed.style.display = "none"; if (denied) denied.hidden = false; return; }
+    if (allowed) allowed.style.display = ""; if (denied) denied.hidden = true;
+    const d = await res.json();
+    crmUser.innerHTML = '<option value="">— Chọn nhân sự —</option>' +
+      (d.salespeople || []).map((u) => `<option value="${u.id}">${esc(u.name)}</option>`).join("");
+    const routing = d.routing || [];
+    crmEmpty.style.display = routing.length ? "none" : "block";
+    crmRows.innerHTML = "";
+    for (const r of routing) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = "<td>" + esc(r.group_name) + "</td><td>" + esc(r.user_name || ("#" + r.user_id)) + "</td>";
+      const td = document.createElement("td");
+      const del = document.createElement("button");
+      del.className = "del"; del.textContent = "Xóa";
+      del.addEventListener("click", async () => {
+        if (!confirm("Xóa định tuyến nhóm '" + r.group_name + "'?")) return;
+        try { await fetch("/api/admin/crm-routing?group=" + encodeURIComponent(r.group_name), { method: "DELETE" }); } catch {}
+        loadCrm();
+      });
+      td.appendChild(del); tr.appendChild(td);
+      crmRows.appendChild(tr);
+    }
+  } catch {}
+}
+
+if (crmSave) crmSave.addEventListener("click", async () => {
+  const group = (crmGroup.value || "").trim();
+  const userId = crmUser.value;
+  const userName = crmUser.selectedOptions[0] ? crmUser.selectedOptions[0].textContent : "";
+  if (!group) { crmStatus.textContent = "⚠️ Nhập tên nhóm sản phẩm."; crmStatus.style.color = "#ff8a8a"; return; }
+  if (!userId) { crmStatus.textContent = "⚠️ Chọn nhân sự phụ trách."; crmStatus.style.color = "#ff8a8a"; return; }
+  crmSave.disabled = true; crmStatus.textContent = "Đang lưu…"; crmStatus.style.color = "var(--muted)";
+  try {
+    await fetch("/api/admin/crm-routing", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ group, userId: Number(userId), userName }),
+    });
+    crmStatus.textContent = "✅ Đã lưu định tuyến cho nhóm '" + group + "'."; crmStatus.style.color = "#4ade80";
+    crmGroup.value = ""; crmUser.value = "";
+    loadCrm();
+  } catch (e) { crmStatus.textContent = "❌ " + e.message; crmStatus.style.color = "#ff8a8a"; }
+  crmSave.disabled = false;
+});
 
 /* ===================== Cảnh báo giám sát ===================== */
 const alBody = document.getElementById("alBody");

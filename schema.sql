@@ -60,6 +60,14 @@ CREATE TABLE IF NOT EXISTS reports (
 );
 CREATE INDEX IF NOT EXISTS idx_reports_created ON reports (created_at DESC);
 
+-- Định tuyến CRM: nhóm sản phẩm -> nhân sự phụ trách (Odoo user) nhận lead.
+CREATE TABLE IF NOT EXISTS crm_routing (
+  group_name TEXT PRIMARY KEY,
+  user_id    INTEGER NOT NULL,
+  user_name  TEXT,
+  created_at INTEGER NOT NULL
+);
+
 -- Trạng thái đồng bộ Google Drive -> R2 (1 dòng id='drive').
 CREATE TABLE IF NOT EXISTS sync_status (
   id          TEXT PRIMARY KEY,

@@ -28,6 +28,9 @@
           <button class="new-chat" id="assignBtn" style="display:none">
             <span>🗂️</span> Giao việc (Odoo)
           </button>
+          <button class="new-chat" id="customerBtn">
+            <span>🧾</span> Nhập khách hàng
+          </button>
         </div>
 
         <div class="conv-section">
@@ -115,6 +118,39 @@
         <div class="modal-actions">
           <button type="button" class="btn-ghost" id="asgCancel">Hủy</button>
           <button type="button" class="btn-accent" id="asgSubmit">Giao việc</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Nhập khách hàng (CRM) -->
+    <div class="modal-backdrop" id="customerModal" hidden>
+      <div class="modal">
+        <h2>🧾 Nhập khách hàng — CRM Odoo</h2>
+        <label class="fld">Nhóm sản phẩm (định tuyến tới nhân sự phụ trách)
+          <select id="cusGroup"></select>
+        </label>
+        <label class="fld">Tên khách hàng
+          <input id="cusName" type="text" placeholder="VD: Anh Tuấn / Cửa hàng ABC" />
+        </label>
+        <label class="fld">Công ty
+          <input id="cusCompany" type="text" placeholder="Tên công ty (nếu có)" />
+        </label>
+        <label class="fld">Người liên hệ
+          <input id="cusContact" type="text" />
+        </label>
+        <label class="fld">Điện thoại
+          <input id="cusPhone" type="text" />
+        </label>
+        <label class="fld">Email
+          <input id="cusEmail" type="email" />
+        </label>
+        <label class="fld">Nhu cầu / Ghi chú
+          <textarea id="cusNote" rows="3" placeholder="Khách quan tâm sản phẩm gì, nhu cầu…"></textarea>
+        </label>
+        <div class="modal-status" id="cusStatus"></div>
+        <div class="modal-actions">
+          <button type="button" class="btn-ghost" id="cusCancel">Hủy</button>
+          <button type="button" class="btn-accent" id="cusSubmit">Lưu khách hàng</button>
         </div>
       </div>
     </div>

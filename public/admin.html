@@ -73,6 +73,7 @@
         <button class="tab" data-tab="reports" id="tabReportsBtn">📈 Báo cáo</button>
         <button class="tab" data-tab="alerts" id="tabAlertsBtn">🚨 Cảnh báo</button>
         <button class="tab" data-tab="grants" id="tabGrantsBtn">👥 Phân quyền</button>
+        <button class="tab" data-tab="crm" id="tabCrmBtn">🛒 Nhóm sản phẩm</button>
         <button class="tab" data-tab="access" id="tabAccessBtn">🔐 Lịch sử đăng nhập</button>
       </div>
 
@@ -228,6 +229,32 @@
           </div>
         </div>
         <div id="grantsDenied" class="denied" hidden>🔒 Chỉ quản trị viên mới xem được mục này.</div>
+      </section>
+
+      <!-- TAB: Nhóm sản phẩm (định tuyến CRM) -->
+      <section id="tab-crm" hidden>
+        <div id="crmAllowed">
+          <div class="card2">
+            <h2>🛒 Định tuyến CRM theo nhóm sản phẩm</h2>
+            <p class="note">Khi nhân viên nhập khách hàng và chọn nhóm sản phẩm, lead sẽ tự gán cho nhân sự phụ trách dưới đây — Odoo thông báo/email cho họ.</p>
+            <div class="row" style="margin-top:16px; align-items:flex-end; gap:14px; flex-wrap:wrap">
+              <label class="note" style="display:flex;flex-direction:column;gap:6px">Nhóm sản phẩm
+                <input class="inp" id="crmGroup" placeholder="VD: Sơn nước" style="min-width:200px" />
+              </label>
+              <label class="note" style="display:flex;flex-direction:column;gap:6px">Nhân sự phụ trách
+                <select id="crmUser" style="min-width:220px"></select>
+              </label>
+              <button class="btn-primary" id="crmSave">Lưu</button>
+            </div>
+            <div class="status" id="crmStatus"></div>
+          </div>
+          <div class="card2">
+            <h2>Đã định tuyến</h2>
+            <table><thead><tr><th>Nhóm sản phẩm</th><th>Nhân sự phụ trách</th><th></th></tr></thead><tbody id="crmRows"></tbody></table>
+            <p class="note" id="crmEmpty" style="display:none">Chưa lập nhóm nào. Thêm ở trên để bắt đầu định tuyến.</p>
+          </div>
+        </div>
+        <div id="crmDenied" class="denied" hidden>🔒 Chỉ quản trị viên mới xem được mục này.</div>
       </section>
 
       <!-- TAB: Lịch sử đăng nhập -->

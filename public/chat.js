@@ -529,6 +529,67 @@ if (asgSubmit) asgSubmit.addEventListener("click", async () => {
   asgSubmit.disabled = false;
 });
 
+/* ---------------- Nhập khách hàng (CRM Odoo) ---------------- */
+const customerBtn = document.getElementById("customerBtn");
+const customerModal = document.getElementById("customerModal");
+const cusGroup = document.getElementById("cusGroup");
+const cusName = document.getElementById("cusName");
+const cusCompany = document.getElementById("cusCompany");
+const cusContact = document.getElementById("cusContact");
+const cusPhone = document.getElementById("cusPhone");
+const cusEmail = document.getElementById("cusEmail");
+const cusNote = document.getElementById("cusNote");
+const cusStatus = document.getElementById("cusStatus");
+const cusSubmit = document.getElementById("cusSubmit");
+const cusCancel = document.getElementById("cusCancel");
+let cusGroupsLoaded = false;
+
+function closeCustomer() { if (customerModal) customerModal.hidden = true; }
+async function openCustomer() {
+  customerModal.hidden = false;
+  cusStatus.textContent = "";
+  if (cusGroupsLoaded) return;
+  try {
+    const d = await (await fetch("/api/crm/groups")).json();
+    cusGroup.innerHTML = '<option value="">(Chưa chọn nhóm)</option>' +
+      (d.groups || []).map((g) => `<option value="${escapeHtml(g)}">${escapeHtml(g)}</option>`).join("");
+    cusGroupsLoaded = true;
+    if (!(d.groups || []).length) {
+      cusStatus.innerHTML = "⚠️ Quản trị chưa lập 'Nhóm sản phẩm → nhân sự'. Vẫn lưu được khách (chưa tự định tuyến).";
+      cusStatus.style.color = "#e0a341";
+    }
+  } catch (e) { cusStatus.textContent = "⚠️ " + e.message; cusStatus.style.color = "#ff8a8a"; }
+}
+if (customerBtn) customerBtn.addEventListener("click", () => { closeSidebar(); openCustomer(); });
+if (cusCancel) cusCancel.addEventListener("click", closeCustomer);
+if (customerModal) customerModal.addEventListener("click", (e) => { if (e.target === customerModal) closeCustomer(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && customerModal && !customerModal.hidden) closeCustomer(); });
+if (cusSubmit) cusSubmit.addEventListener("click", async () => {
+  const customerName = cusName.value.trim(), company = cusCompany.value.trim(), contactName = cusContact.value.trim();
+  if (!customerName && !company && !contactName) { cusStatus.textContent = "⚠️ Nhập tên khách hàng / công ty / người liên hệ."; cusStatus.style.color = "#ff8a8a"; return; }
+  cusSubmit.disabled = true; cusStatus.textContent = "Đang lưu vào CRM Odoo…"; cusStatus.style.color = "var(--muted)";
+  try {
+    const res = await fetch("/api/crm/lead", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        customerName, company, contactName,
+        phone: cusPhone.value.trim() || undefined,
+        email: cusEmail.value.trim() || undefined,
+        group: cusGroup.value || undefined,
+        note: cusNote.value.trim() || undefined,
+      }),
+    });
+    const d = await res.json();
+    if (res.ok && d.ok) {
+      cusStatus.innerHTML = "✅ Đã lưu khách hàng (lead #" + d.leadId + "). " +
+        (d.responsibleName ? "Đã chuyển cho <b>" + escapeHtml(d.responsibleName) + "</b> (Odoo sẽ thông báo/email)." : "<span style='color:#e0a341'>Chưa định tuyến — nhóm này chưa có nhân sự phụ trách.</span>");
+      cusStatus.style.color = "#4ade80";
+      cusName.value = ""; cusCompany.value = ""; cusContact.value = ""; cusPhone.value = ""; cusEmail.value = ""; cusNote.value = "";
+    } else { cusStatus.textContent = "❌ " + (d.error || "Lỗi"); cusStatus.style.color = "#ff8a8a"; }
+  } catch (e) { cusStatus.textContent = "❌ " + e.message; cusStatus.style.color = "#ff8a8a"; }
+  cusSubmit.disabled = false;
+});
+
 /* ---------------- Gọi API chat (stream + dừng + tạo lại) ---------------- */
 function setStreaming(on) {
   streaming = on;

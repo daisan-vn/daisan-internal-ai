@@ -9,6 +9,7 @@ import { getStats } from "./stats";
 import { setFeedback } from "./feedback";
 import { blockedDeptsFor, allowedDeptsFor, listGrants, setGrant, odooModelDept, DEPT_LABELS, canAssign } from "./rbac";
 import { listProjects, listAssignees, createTask } from "./tasks";
+import { listGroups, listRouting, setRouting, deleteRouting, createLead } from "./crm";
 import { generateReport, listReports, getReport } from "./reports";
 import { runAlerts, getAlertsView } from "./alerts";
 import { emailConfigured, sendEmail, alertHtml, alertSubject, alertsHaveIssues, reportHtml } from "./email";
@@ -44,6 +45,47 @@ export default {
       try { out.projects = await listProjects(env); } catch (e) { out.errors.push("Dự án: " + (e instanceof Error ? e.message : String(e))); }
       try { out.assignees = await listAssignees(env); } catch (e) { out.errors.push("Người nhận: " + (e instanceof Error ? e.message : String(e))); }
       return Response.json(out);
+    }
+
+    // CRM: mọi nhân viên nhập khách hàng -> tạo crm.lead, định tuyến theo nhóm sản phẩm.
+    if (path === "/api/crm/groups" && request.method === "GET") {
+      if (!odooConfigured(env)) return Response.json({ groups: [] });
+      return Response.json({ groups: await listGroups(env) });
+    }
+    if (path === "/api/crm/lead" && request.method === "POST") {
+      if (!odooConfigured(env)) return Response.json({ error: "Chưa kết nối Odoo." }, { status: 400 });
+      let b: { customerName?: string; company?: string; contactName?: string; phone?: string; email?: string; group?: string; note?: string };
+      try { b = await request.json(); } catch { return Response.json({ error: "JSON không hợp lệ" }, { status: 400 }); }
+      if (!(b.customerName || b.company || b.contactName)) return Response.json({ error: "Nhập tên khách hàng hoặc công ty hoặc người liên hệ." }, { status: 400 });
+      try {
+        const r = await createLead(env, { ...b, createdBy: hist.userEmail(request) });
+        return Response.json({ ok: true, leadId: r.leadId, responsibleName: r.responsibleName, activityWarning: r.activityWarning });
+      } catch (e) {
+        return Response.json({ ok: false, error: e instanceof Error ? e.message : String(e) }, { status: 500 });
+      }
+    }
+
+    // Quản lý bảng định tuyến CRM (chỉ admin).
+    if (path === "/api/admin/crm-routing" && request.method === "GET") {
+      if (!isAdmin(env, hist.userEmail(request))) return Response.json({ error: "Bạn không có quyền." }, { status: 403 });
+      let salespeople: unknown[] = [];
+      try { salespeople = await listAssignees(env); } catch { /* Odoo có thể chưa nối */ }
+      return Response.json({ routing: await listRouting(env), salespeople });
+    }
+    if (path === "/api/admin/crm-routing" && request.method === "POST") {
+      if (!isAdmin(env, hist.userEmail(request))) return Response.json({ error: "Bạn không có quyền." }, { status: 403 });
+      let b: { group?: string; userId?: number; userName?: string };
+      try { b = await request.json(); } catch { return Response.json({ error: "JSON không hợp lệ" }, { status: 400 }); }
+      if (!b.group || !b.userId) return Response.json({ error: "Thiếu nhóm hoặc nhân sự" }, { status: 400 });
+      await setRouting(env, b.group, Number(b.userId), b.userName);
+      return Response.json({ ok: true });
+    }
+    if (path === "/api/admin/crm-routing" && request.method === "DELETE") {
+      if (!isAdmin(env, hist.userEmail(request))) return Response.json({ error: "Bạn không có quyền." }, { status: 403 });
+      const group = url.searchParams.get("group");
+      if (!group) return Response.json({ error: "Thiếu group" }, { status: 400 });
+      await deleteRouting(env, group);
+      return Response.json({ ok: true });
     }
     if (path === "/api/assign" && request.method === "POST") {
       if (!canAssign(env, hist.userEmail(request))) return Response.json({ error: "Bạn không có quyền giao việc." }, { status: 403 });
