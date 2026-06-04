@@ -29,6 +29,44 @@ function resolveEndpoint(env: Env): { url: string; headers: Record<string, strin
 }
 
 /**
+ * POST tới Claude (qua AI Gateway) và TỰ THỬ LẠI khi bị giới hạn tốc độ (429)
+ * hoặc quá tải tạm thời (529/5xx) — với backoff lũy thừa, tôn trọng Retry-After.
+ *
+ * Mỗi câu hỏi có thể gọi Claude nhiều lượt (vòng lặp tool Odoo) nên rất dễ chạm
+ * trần phút của Anthropic; thử lại nhẹ nhàng giúp nhân viên không bị "đứng" giữa chừng.
+ */
+async function postClaude(env: Env, body: Record<string, unknown>): Promise<Response> {
+  const { url, headers } = resolveEndpoint(env);
+  const MAX_ATTEMPTS = 4;
+  let lastStatus = 0;
+  let lastDetail = "";
+
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    const res = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
+    if (res.ok && res.body) return res;
+
+    lastStatus = res.status;
+    lastDetail = await res.text().catch(() => "");
+    const retryable = res.status === 429 || res.status === 529 || (res.status >= 500 && res.status < 600);
+    if (retryable && attempt < MAX_ATTEMPTS - 1) {
+      const retryAfter = Number(res.headers.get("retry-after"));
+      const waitMs = retryAfter > 0 ? retryAfter * 1000 : Math.min(1500 * 2 ** attempt, 8000);
+      await new Promise((r) => setTimeout(r, waitMs));
+      continue;
+    }
+    break;
+  }
+
+  if (lastStatus === 429) {
+    throw new Error(
+      "Hệ thống đang có nhiều câu hỏi cùng lúc nên tạm thời quá tải (giới hạn tốc độ). " +
+        "Bạn vui lòng đợi khoảng 30 giây rồi hỏi lại nhé.",
+    );
+  }
+  throw new Error(`Claude API lỗi ${lastStatus}: ${lastDetail}`);
+}
+
+/**
  * Gọi Claude (Anthropic Messages API) ở chế độ streaming qua AI Gateway,
  * trả về async generator các đoạn text để Worker đẩy SSE về client.
  */
@@ -37,27 +75,16 @@ export async function* streamClaude(
   system: string,
   messages: ChatMessage[],
 ): AsyncGenerator<string> {
-  const { url, headers } = resolveEndpoint(env);
-
-  const res = await fetch(url, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      model: env.DEFAULT_MODEL,
-      max_tokens: 1024,
-      system,
-      messages,
-      stream: true,
-    }),
+  const res = await postClaude(env, {
+    model: env.DEFAULT_MODEL,
+    max_tokens: 1024,
+    system,
+    messages,
+    stream: true,
   });
 
-  if (!res.ok || !res.body) {
-    const detail = await res.text().catch(() => "");
-    throw new Error(`Claude API lỗi ${res.status}: ${detail}`);
-  }
-
   // Đọc SSE của Anthropic, bóc các content_block_delta -> text.
-  const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+  const reader = res.body!.pipeThrough(new TextDecoderStream()).getReader();
   let buffer = "";
   while (true) {
     const { value, done } = await reader.read();
@@ -116,7 +143,6 @@ export async function* streamClaudeAgent(
   describe: (name: string, input: Record<string, unknown>) => string,
   maxRounds = 6,
 ): AsyncGenerator<AgentEvent> {
-  const { url, headers } = resolveEndpoint(env);
   // Bản làm việc của hội thoại theo định dạng block của Anthropic.
   const convo: Array<{ role: string; content: unknown }> = messages.map((m) => ({
     role: m.role,
@@ -124,24 +150,16 @@ export async function* streamClaudeAgent(
   }));
 
   for (let round = 0; round < maxRounds; round++) {
-    const res = await fetch(url, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        model: env.DEFAULT_MODEL,
-        max_tokens: 2048,
-        system,
-        messages: convo,
-        tools,
-        stream: true,
-      }),
+    const res = await postClaude(env, {
+      model: env.DEFAULT_MODEL,
+      max_tokens: 2048,
+      system,
+      messages: convo,
+      tools,
+      stream: true,
     });
-    if (!res.ok || !res.body) {
-      const detail = await res.text().catch(() => "");
-      throw new Error(`Claude API lỗi ${res.status}: ${detail}`);
-    }
 
-    const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+    const reader = res.body!.pipeThrough(new TextDecoderStream()).getReader();
     let buffer = "";
     const blocks: Record<number, StreamBlock> = {};
     const order: number[] = [];
