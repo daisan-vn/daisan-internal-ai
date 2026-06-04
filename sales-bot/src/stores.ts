@@ -6,12 +6,24 @@ import type { Env, Store } from "./types";
  * thật (Odoo/D1/feed) — hàm findNearestStores giữ nguyên.
  */
 
+// 13 cửa hàng Daisan. Toạ độ hiện là TRUNG TÂM tỉnh/thành (đủ để định tuyến đúng
+// khu vực); thay bằng lat/lng chính xác của từng cửa hàng khi có địa chỉ.
+// categories để trống = không lọc theo ngành hàng (mọi cửa hàng đều được gợi ý).
+const HOTLINE = "1900989836";
 const MOCK_STORES: Store[] = [
-  { id: "hn-caugiay", name: "Daisan Cầu Giấy", province: "Hà Nội", address: "Cầu Giấy, Hà Nội", lat: 21.0313, lng: 105.7872, phone: "1900989836", salesperson: "NV Hà Nội", categories: ["Gạch ốp lát", "Sơn", "Xi măng", "Thạch cao"] },
-  { id: "hn-hadong", name: "Daisan Hà Đông", province: "Hà Nội", address: "Hà Đông, Hà Nội", lat: 20.9710, lng: 105.7788, phone: "1800646498", salesperson: "NV Hà Nội", categories: ["Gạch ốp lát", "Xi măng"] },
-  { id: "hcm-q7", name: "Daisan Quận 7", province: "Hồ Chí Minh", address: "Quận 7, TP.HCM", lat: 10.7340, lng: 106.7215, phone: "0986258282", salesperson: "NV HCM", categories: ["Gạch ốp lát", "Sơn", "Thạch cao"] },
-  { id: "hcm-thuduc", name: "Daisan Thủ Đức", province: "Hồ Chí Minh", address: "TP Thủ Đức, TP.HCM", lat: 10.8499, lng: 106.7537, phone: "0986258282", salesperson: "NV HCM", categories: ["Gạch ốp lát", "Xi măng", "Sơn"] },
-  { id: "dn-haichau", name: "Daisan Hải Châu", province: "Đà Nẵng", address: "Hải Châu, Đà Nẵng", lat: 16.0544, lng: 108.2022, phone: "0986258282", salesperson: "NV Đà Nẵng", categories: ["Gạch ốp lát", "Sơn"] },
+  { id: "ha-noi", name: "Daisan Hà Nội", province: "Hà Nội", address: "Hà Nội", lat: 21.0278, lng: 105.8342, phone: HOTLINE },
+  { id: "dong-anh", name: "Daisan Đông Anh", province: "Hà Nội", address: "Đông Anh, Hà Nội", lat: 21.1389, lng: 105.8500, phone: HOTLINE },
+  { id: "hai-phong", name: "Daisan Hải Phòng", province: "Hải Phòng", address: "Hải Phòng", lat: 20.8449, lng: 106.6881, phone: HOTLINE },
+  { id: "quang-ninh", name: "Daisan Quảng Ninh", province: "Quảng Ninh", address: "Hạ Long, Quảng Ninh", lat: 20.9590, lng: 107.0470, phone: HOTLINE },
+  { id: "bac-ninh", name: "Daisan Bắc Ninh", province: "Bắc Ninh", address: "Bắc Ninh", lat: 21.1861, lng: 106.0763, phone: HOTLINE },
+  { id: "thai-nguyen", name: "Daisan Thái Nguyên", province: "Thái Nguyên", address: "Thái Nguyên", lat: 21.5942, lng: 105.8480, phone: HOTLINE },
+  { id: "ha-nam", name: "Daisan Hà Nam", province: "Hà Nam", address: "Phủ Lý, Hà Nam", lat: 20.5411, lng: 105.9139, phone: HOTLINE },
+  { id: "nghe-an", name: "Daisan Nghệ An", province: "Nghệ An", address: "Vinh, Nghệ An", lat: 18.6790, lng: 105.6814, phone: HOTLINE },
+  { id: "da-nang", name: "Daisan Đà Nẵng", province: "Đà Nẵng", address: "Đà Nẵng", lat: 16.0544, lng: 108.2022, phone: HOTLINE },
+  { id: "khanh-hoa", name: "Daisan Khánh Hòa", province: "Khánh Hòa", address: "Nha Trang, Khánh Hòa", lat: 12.2388, lng: 109.1967, phone: HOTLINE },
+  { id: "hcm", name: "Daisan HCM", province: "Hồ Chí Minh", address: "TP.HCM", lat: 10.7769, lng: 106.7009, phone: HOTLINE },
+  { id: "binh-tan", name: "Daisan Bình Tân", province: "Hồ Chí Minh", address: "Bình Tân, TP.HCM", lat: 10.7652, lng: 106.6039, phone: HOTLINE },
+  { id: "can-tho", name: "Daisan Cần Thơ", province: "Cần Thơ", address: "Cần Thơ", lat: 10.0452, lng: 105.7469, phone: HOTLINE },
 ];
 
 function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
