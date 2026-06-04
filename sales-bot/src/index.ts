@@ -58,6 +58,24 @@ export default {
 
     if (request.method === "OPTIONS") return new Response(null, { headers: cors });
     if (url.pathname === "/api/health") return Response.json({ ok: true, service: "daisan-sales-bot" }, { headers: cors });
+
+    // Chẩn đoán nguồn Shopify: mở thẳng trên trình duyệt để xem products.json trả về gì.
+    if (url.pathname === "/api/debug/shopify") {
+      const domain = (env.SHOPIFY_DOMAIN || "").replace(/^https?:\/\//, "").replace(/\/+$/, "");
+      const u = `https://${domain}/products.json?limit=5`;
+      try {
+        const r = await fetch(u, { headers: { accept: "application/json", "user-agent": "DaisanSalesBot/1.0" } });
+        const ct = r.headers.get("content-type") || "";
+        const text = await r.text();
+        let count = 0; let sample: string | null = null; let parseErr: string | null = null;
+        try { const d = JSON.parse(text); count = (d.products || []).length; sample = (d.products || [])[0]?.title ?? null; }
+        catch (e) { parseErr = e instanceof Error ? e.message : String(e); }
+        return Response.json({ domain, url: u, status: r.status, contentType: ct, count, sample, parseErr, bodyPreview: text.slice(0, 400) }, { headers: cors });
+      } catch (e) {
+        return Response.json({ domain, url: u, fetchError: e instanceof Error ? e.message : String(e) }, { headers: cors });
+      }
+    }
+
     if (url.pathname === "/api/chat" && request.method === "POST") return handleChat(request, env, cors);
     if (url.pathname === "/api/lead" && request.method === "POST") return handleLead(request, env, cors);
 
