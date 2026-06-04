@@ -35,10 +35,11 @@ Tự động: workflow `.github/workflows/deploy-sales-bot.yml` (ở gốc repo)
 có thay đổi trong `sales-bot/**` trên nhánh `main`.
 
 ## Nhúng vào website
+Bot phục vụ tại **https://salesbot.daisan.ai**. Nhúng vào site bất kỳ (daisanstore.com…):
 ```html
-<script src="https://<worker-url>/widget.js" data-site="daisanstore" defer></script>
+<script src="https://salesbot.daisan.ai/widget.js" data-site="daisanstore" defer></script>
 ```
-Xem thử: mở `https://<worker-url>/embed-demo.html`.
+Xem thử: mở **https://salesbot.daisan.ai/embed-demo.html**.
 
 ## Cắm dữ liệu thật (khi có)
 1. **Elasticsearch**: điền `ES_URL`, `ES_INDEX` trong `wrangler.jsonc`, đặt secret `ES_API_KEY`; chỉnh map trường trong `src/search.ts` cho khớp index.

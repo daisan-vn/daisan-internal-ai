@@ -8,8 +8,11 @@
   "compatibility_date": "2025-01-01",
   "compatibility_flags": ["nodejs_compat"],
 
-  // Bật URL *.workers.dev để test nhanh; sau gắn domain riêng (vd chat.daisanstore.com).
+  // Bật URL *.workers.dev để test nhanh; bot phục vụ tại domain riêng bên dưới.
   "workers_dev": true,
+
+  // Domain công khai của bot bán hàng (wrangler tự tạo DNS + cert vì daisan.ai ở Cloudflare).
+  "routes": [{ "pattern": "salesbot.daisan.ai", "custom_domain": true }],
 
   "assets": { "directory": "./public", "binding": "ASSETS" },
 
