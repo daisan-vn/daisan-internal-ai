@@ -29,14 +29,28 @@ export async function getConversation(env: Env, email: string, id: string) {
   ).bind(id, email).first<{ id: string; title: string }>();
   if (!conv) return null;
 
-  const { results } = await env.DB.prepare(
-    "SELECT role, content, sources FROM messages WHERE conversation_id = ? ORDER BY created_at",
-  ).bind(id).all<{ role: string; content: string; sources: string | null }>();
+  // LEFT JOIN feedback để khôi phục trạng thái 👍/👎 khi mở lại hội thoại cũ.
+  // (Bảng feedback tạo lazy nên có thể chưa tồn tại -> bọc try/catch, fallback không có feedback.)
+  let results: Array<{ id: string; role: string; content: string; sources: string | null; feedback: number | null }> = [];
+  try {
+    const r = await env.DB.prepare(
+      "SELECT m.id, m.role, m.content, m.sources, f.value AS feedback FROM messages m " +
+        "LEFT JOIN feedback f ON f.message_id = m.id WHERE m.conversation_id = ? ORDER BY m.created_at",
+    ).bind(id).all<{ id: string; role: string; content: string; sources: string | null; feedback: number | null }>();
+    results = r.results ?? [];
+  } catch {
+    const r = await env.DB.prepare(
+      "SELECT id, role, content, sources, NULL AS feedback FROM messages WHERE conversation_id = ? ORDER BY created_at",
+    ).bind(id).all<{ id: string; role: string; content: string; sources: string | null; feedback: number | null }>();
+    results = r.results ?? [];
+  }
 
-  const messages = (results ?? []).map((m) => ({
+  const messages = results.map((m) => ({
+    id: m.id,
     role: m.role,
     content: m.content,
     sources: m.sources ? (JSON.parse(m.sources) as string[]) : [],
+    feedback: m.feedback ?? 0,
   }));
   return { id: conv.id, title: conv.title, messages };
 }
@@ -58,23 +72,26 @@ export async function createConversation(env: Env, email: string, firstMessage: 
   return id;
 }
 
+/** Lưu một message, trả về id của message (dùng để gắn phản hồi 👍/👎). */
 export async function addMessageRow(
   env: Env,
   conversationId: string,
   role: string,
   content: string,
   sources?: string[],
-): Promise<void> {
+): Promise<string> {
+  const id = crypto.randomUUID();
   await env.DB.prepare(
     "INSERT INTO messages (id, conversation_id, role, content, sources, created_at) VALUES (?, ?, ?, ?, ?, ?)",
   ).bind(
-    crypto.randomUUID(),
+    id,
     conversationId,
     role,
     content,
     sources && sources.length ? JSON.stringify(sources) : null,
     Date.now(),
   ).run();
+  return id;
 }
 
 export async function renameConversation(env: Env, email: string, id: string, title: string): Promise<boolean> {

@@ -6,6 +6,7 @@ import { ODOO_TOOLS, runOdooTool, describeOdooTool, odooConfigured, odooDiagnose
 import { recordAccess, isAdmin, listAccess } from "./access";
 import { gdriveConfigured, runSyncWithStatus, readSyncStatus } from "./gdrive";
 import { getStats } from "./stats";
+import { setFeedback } from "./feedback";
 import * as hist from "./history";
 
 export default {
@@ -135,6 +136,15 @@ export default {
       });
     }
 
+    // Phản hồi 👍/👎 cho một câu trả lời (mọi người dùng đã qua Access).
+    if (path === "/api/feedback" && request.method === "POST") {
+      let b: { messageId?: string; value?: number };
+      try { b = await request.json(); } catch { return Response.json({ error: "JSON không hợp lệ" }, { status: 400 }); }
+      if (!b.messageId) return Response.json({ error: "Thiếu messageId" }, { status: 400 });
+      await setFeedback(env, b.messageId, hist.userEmail(request), Number(b.value) || 0);
+      return Response.json({ ok: true });
+    }
+
     if (path === "/api/chat" && request.method === "POST") {
       return handleChat(request, env, ctx);
     }
@@ -220,11 +230,12 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext): Pr
           }
         }
         const sources = usedOdoo ? [...docSources, "Odoo (dữ liệu trực tiếp)"] : docSources;
+        let messageId: string | null = null;
         if (answer) {
-          await hist.addMessageRow(env, convId, "assistant", answer, sources);
+          messageId = await hist.addMessageRow(env, convId, "assistant", answer, sources);
           await hist.touchConversation(env, convId);
         }
-        send({ done: true, sources, conversationId: convId });
+        send({ done: true, sources, conversationId: convId, messageId });
       } catch (err) {
         send({ error: err instanceof Error ? err.message : "Lỗi không xác định" });
       } finally {

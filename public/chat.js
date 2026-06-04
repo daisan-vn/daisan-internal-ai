@@ -133,14 +133,14 @@ function addMessage(role, text) {
   scrollBottom();
   return bubble;
 }
-function renderFinal(role, content, sources) {
+function renderFinal(role, content, sources, messageId, feedback) {
   const bubble = addMessage(role, content);
   if (role === "assistant") {
     bubble.classList.add("md");
     bubble.innerHTML = renderMarkdown(content);
     bubble.__md = content; bubble.__sources = sources || [];
     renderSources(bubble, sources);
-    addActions(bubble);
+    addActions(bubble, messageId, feedback);
   }
 }
 function renderSources(bubble, sources) {
@@ -164,7 +164,7 @@ function flash(btn, msg) {
   btn.classList.add("done");
   setTimeout(() => { span.textContent = old; btn.classList.remove("done"); }, 1400);
 }
-function addActions(bubble) {
+function addActions(bubble, messageId, feedback) {
   const bar = document.createElement("div");
   bar.className = "actions";
   const text = () => bubble.innerText.trim();
@@ -193,8 +193,40 @@ function addActions(bubble) {
     if (navigator.share) { try { await navigator.share({ title: "Trợ lý AI nội bộ Daisan", text: t }); } catch {} }
     else { try { await navigator.clipboard.writeText(t); flash(b, "Đã copy để chia sẻ ✓"); } catch {} }
   });
+  if (messageId) addFeedback(bar, messageId, feedback || 0);
   addExportControl(bar, bubble);
   bubble.parentElement.appendChild(bar);
+}
+
+/* Nút 👍/👎 đánh giá câu trả lời. Bấm lại cùng nút để bỏ chọn. */
+function addFeedback(bar, messageId, current) {
+  const wrap = document.createElement("div");
+  wrap.className = "fb-wrap";
+  let value = current || 0;
+  const up = document.createElement("button");
+  up.type = "button"; up.className = "fb"; up.title = "Hữu ích"; up.textContent = "👍";
+  const down = document.createElement("button");
+  down.type = "button"; down.className = "fb"; down.title = "Chưa tốt"; down.textContent = "👎";
+  const sync = () => {
+    up.classList.toggle("on", value === 1);
+    down.classList.toggle("on", value === -1);
+  };
+  const send = async (v) => {
+    value = value === v ? 0 : v; // bấm lại = bỏ chọn
+    sync();
+    try {
+      await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ messageId, value }),
+      });
+    } catch {}
+  };
+  up.addEventListener("click", () => send(1));
+  down.addEventListener("click", () => send(-1));
+  sync();
+  wrap.append(up, down);
+  bar.appendChild(wrap);
 }
 
 /* ---------------- Xuất tài liệu (Word / PDF / Excel / Markdown) ---------------- */
@@ -401,7 +433,7 @@ async function loadConversation(id) {
     conversationId = conv.id;
     history.length = 0;
     messagesEl.innerHTML = "";
-    for (const m of conv.messages) { history.push({ role: m.role, content: m.content }); renderFinal(m.role, m.content, m.sources); }
+    for (const m of conv.messages) { history.push({ role: m.role, content: m.content }); renderFinal(m.role, m.content, m.sources, m.id, m.feedback); }
     markActive(); closeSidebar(); scrollBottom();
   } catch {}
 }
@@ -485,7 +517,7 @@ async function streamAnswer() {
           if (answer) { bubble.innerHTML = renderMarkdown(answer); }
           bubble.__md = answer; bubble.__sources = event.sources || [];
           renderSources(bubble, event.sources);
-          if (answer) addActions(bubble);
+          if (answer) addActions(bubble, event.messageId);
           if (event.conversationId) conversationId = event.conversationId;
           loadConversations(); scrollBottom();
         }

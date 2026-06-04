@@ -210,8 +210,9 @@ async function loadStats() {
     document.getElementById("stStats").innerHTML =
       card(s.questions, "Câu hỏi") +
       card(s.users, "Người dùng") +
-      card(s.conversations, "Cuộc trò chuyện") +
-      card(s.unknown, "Chưa trả lời được");
+      card(s.unknown, "Chưa trả lời được") +
+      card("👍 " + (s.up || 0), "Hữu ích") +
+      card("👎 " + (s.down || 0), "Chưa tốt");
 
     const gaps = d.gaps || [];
     document.getElementById("stGapsEmpty").style.display = gaps.length ? "none" : "block";
@@ -223,6 +224,12 @@ async function loadStats() {
     document.getElementById("stTopEmpty").style.display = top.length ? "none" : "block";
     document.getElementById("stTop").innerHTML = top
       .map((t) => "<tr><td>" + esc(t.question) + "</td><td>" + (t.count || 1) + "</td><td>" + fmtTime(t.last) + "</td></tr>")
+      .join("");
+
+    const disliked = d.disliked || [];
+    document.getElementById("stDislikedEmpty").style.display = disliked.length ? "none" : "block";
+    document.getElementById("stDisliked").innerHTML = disliked
+      .map((x) => "<tr><td>" + esc(x.question) + "</td><td class='note' style='max-width:340px'>" + esc(x.answer) + "…</td><td>" + esc(x.user_email) + "</td><td>" + fmtTime(x.created_at) + "</td></tr>")
       .join("");
   } catch {}
 }
