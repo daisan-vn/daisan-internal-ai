@@ -43,3 +43,11 @@ export async function createLead(env: Env, vals: Record<string, unknown>): Promi
   if (typeof id !== "number") throw new Error("Tạo lead Odoo thất bại.");
   return id;
 }
+
+/** Kiểm tra kết nối: xác thực + đọc tên user (debug). */
+export async function odooAuthCheck(env: Env): Promise<{ uid: number; name: string }> {
+  uidCache = null;
+  const uid = await getUid(env);
+  const rows = (await jsonRpc(env, "object", "execute_kw", [env.ODOO_DB, uid, env.ODOO_API_KEY, "res.users", "read", [[uid], ["name", "login"]]])) as Array<{ name?: string; login?: string }>;
+  return { uid, name: rows?.[0]?.name || rows?.[0]?.login || "?" };
+}

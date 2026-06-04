@@ -4,6 +4,7 @@ import { streamSalesAgent } from "./llm";
 import { searchProducts } from "./search";
 import { findNearestStores } from "./stores";
 import { captureLead } from "./lead";
+import { odooConfigured, odooAuthCheck } from "./odoo";
 
 const TOOLS: ToolDef[] = [
   {
@@ -81,6 +82,21 @@ export default {
       const q = url.searchParams.get("q") || "gạch";
       const r = await searchProducts(env, q, 6);
       return Response.json({ q, source: r.source, count: r.products.length, names: r.products.map((p) => p.name), sample: r.products[0] }, { headers: cors });
+    }
+
+    // Kiểm tra kết nối Odoo CRM (mở trên trình duyệt để xác nhận đã cấu hình đúng).
+    if (url.pathname === "/api/debug/odoo") {
+      const out: Record<string, unknown> = {
+        configured: odooConfigured(env),
+        url: env.ODOO_URL || null, db: env.ODOO_DB || null,
+        hasLogin: !!env.ODOO_LOGIN, hasApiKey: !!env.ODOO_API_KEY,
+      };
+      if (odooConfigured(env)) {
+        try { out.auth = await odooAuthCheck(env); } catch (e) { out.authError = e instanceof Error ? e.message : String(e); }
+      } else {
+        out.note = "Thiếu ODOO_LOGIN và/hoặc ODOO_API_KEY (đặt dạng secret cho worker).";
+      }
+      return Response.json(out, { headers: cors });
     }
 
     if (url.pathname === "/api/chat" && request.method === "POST") return handleChat(request, env, cors);
