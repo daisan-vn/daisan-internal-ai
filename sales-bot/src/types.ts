@@ -15,6 +15,8 @@ export interface Env {
   ALLOWED_ORIGINS?: string;
   ES_URL?: string;
   ES_INDEX?: string;
+  // Shopify: lấy sản phẩm từ store công khai (vd "daisanstore.com") qua products.json.
+  SHOPIFY_DOMAIN?: string;
 
   // optional
   DB?: D1Database;
@@ -47,6 +49,7 @@ export interface Product {
   brand?: string;
   desc?: string;
   image?: string;
+  url?: string;
 }
 
 export interface Store {

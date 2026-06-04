@@ -24,7 +24,10 @@
     // Các domain được phép nhúng widget (CORS), cách nhau dấu phẩy. * = mọi nơi (chỉ nên dùng khi test).
     "ALLOWED_ORIGINS": "*",
 
-    // --- Elasticsearch (để TRỐNG -> dùng dữ liệu sản phẩm MẪU) ---
+    // --- Nguồn sản phẩm ---
+    // Shopify: lấy hàng THẬT từ store công khai qua products.json (có ưu tiên cao nhất).
+    "SHOPIFY_DOMAIN": "daisanstore.com",
+    // Elasticsearch (để TRỐNG -> bỏ qua). Khi có PIM/ES của daisan.vn thì điền.
     "ES_URL": "",
     "ES_INDEX": "products"
     // secret: ES_API_KEY (wrangler secret put ES_API_KEY) nếu ES cần xác thực.

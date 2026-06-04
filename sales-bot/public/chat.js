@@ -59,10 +59,13 @@ function productCard(p) {
   const price = p.price
     ? `<div class="sb-card-price">${vnd(p.price)}${p.unit ? `<span>/${esc(p.unit)}</span>` : ""}</div>`
     : `<div class="sb-card-price contact">Liên hệ báo giá</div>`;
+  const name = p.url
+    ? `<a class="sb-card-name" href="${esc(p.url)}" target="_blank" rel="noopener" title="${esc(p.name)}">${esc(p.name)}</a>`
+    : `<div class="sb-card-name" title="${esc(p.name)}">${esc(p.name)}</div>`;
   card.innerHTML =
     img +
     `<div class="sb-card-body">` +
-    `<div class="sb-card-name" title="${esc(p.name)}">${esc(p.name)}</div>` +
+    name +
     price +
     (p.brand ? `<div class="sb-card-brand">${esc(p.brand)}</div>` : "") +
     `<button class="sb-card-btn" type="button">Tư vấn ngay</button>` +
