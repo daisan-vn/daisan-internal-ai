@@ -1,9 +1,9 @@
 import type { Env } from "./types";
+import { odooConfigured, createLead } from "./odoo";
 
 /**
- * Thu lead. Skeleton: lưu vào D1 nếu đã bật binding DB, đồng thời log; trả về mã
- * tham chiếu. BƯỚC SAU: chuyển thẳng sang Odoo CRM (crm.lead) + định tuyến theo
- * nhóm sản phẩm / cửa hàng gần nhất (tái dùng cơ chế đã làm cho trợ lý nội bộ).
+ * Thu lead. Ưu tiên tạo crm.lead trong Odoo (nếu đã cấu hình) để sales nhận ngay;
+ * đồng thời lưu D1 (nếu bật) + log. Trả về mã tham chiếu hiển thị cho khách.
  */
 
 export interface LeadInput {
@@ -19,9 +19,37 @@ export interface LeadInput {
 
 export async function captureLead(env: Env, input: LeadInput): Promise<{ ref: string }> {
   const ref = "LEAD-" + Date.now().toString(36).toUpperCase();
-  const row = { ref, ...input, created_at: Date.now() };
 
-  // Lưu D1 nếu có (tùy chọn — xem wrangler.jsonc).
+  // 1) Tạo lead trong Odoo CRM (nếu đã cấu hình).
+  if (odooConfigured(env)) {
+    try {
+      const title = `[Web ${input.site || "salesbot"}] ` + (input.productInterest || input.name || "Khách hàng mới");
+      const desc = [
+        input.productInterest ? "Quan tâm: " + input.productInterest : "",
+        input.name ? "Tên: " + input.name : "",
+        input.province ? "Khu vực: " + input.province : "",
+        input.storeId ? "Cửa hàng gần nhất: " + input.storeId : "",
+        input.note ? "Ghi chú: " + input.note : "",
+        "Nguồn: chatbot " + (input.site || "salesbot"),
+      ].filter(Boolean).join("\n");
+      const vals: Record<string, unknown> = {
+        name: title,
+        type: "opportunity",
+        phone: input.phone,
+        description: desc,
+      };
+      if (input.name) vals.contact_name = input.name;
+      if (input.email) vals.email_from = input.email;
+      const id = await createLead(env, vals);
+      console.log("LEAD->Odoo crm.lead #" + id, input.phone);
+      return { ref: "#" + id };
+    } catch (e) {
+      console.error("Tạo lead Odoo lỗi:", e); // rơi xuống lưu D1/log
+    }
+  }
+
+  // 2) Dự phòng: lưu D1 (nếu bật) + log.
+  const row = { ref, ...input, created_at: Date.now() };
   if (env.DB) {
     try {
       await env.DB.prepare(
@@ -38,6 +66,6 @@ export async function captureLead(env: Env, input: LeadInput): Promise<{ ref: st
     }
   }
   console.log("LEAD:", JSON.stringify(row));
-  // TODO: tạo crm.lead trong Odoo + định tuyến tới cửa hàng/nhân sự phụ trách.
   return { ref };
 }
+

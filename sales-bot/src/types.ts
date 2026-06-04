@@ -18,6 +18,14 @@ export interface Env {
   // Shopify: lấy sản phẩm từ store công khai (vd "daisanstore.com") qua products.json.
   SHOPIFY_DOMAIN?: string;
 
+  // --- Odoo CRM (CHỈ tạo lead) — xem src/odoo.ts ---
+  // vars: ODOO_URL, ODOO_DB, ODOO_LOGIN (hoặc ODOO_UID). secret: ODOO_API_KEY.
+  ODOO_URL?: string;
+  ODOO_DB?: string;
+  ODOO_LOGIN?: string;
+  ODOO_UID?: string;
+  ODOO_API_KEY?: string;
+
   // optional
   DB?: D1Database;
 }

@@ -29,7 +29,14 @@
     "SHOPIFY_DOMAIN": "daisanstore.com",
     // Elasticsearch (để TRỐNG -> bỏ qua). Khi có PIM/ES của daisan.vn thì điền.
     "ES_URL": "",
-    "ES_INDEX": "products"
+    "ES_INDEX": "products",
+
+    // --- Odoo CRM (chỉ tạo lead) ---
+    // Đặt ODOO_LOGIN (nên dùng tài khoản API riêng cho bot, chỉ quyền tạo lead) và
+    // secret ODOO_API_KEY thì lead sẽ vào thẳng CRM; để trống -> lead lưu tạm + log.
+    "ODOO_URL": "https://dserp.odoo.com",
+    "ODOO_DB": "daisan-vn-daisanerp-main-22763695",
+    "ODOO_LOGIN": ""
     // secret: ES_API_KEY (wrangler secret put ES_API_KEY) nếu ES cần xác thực.
   },
 
