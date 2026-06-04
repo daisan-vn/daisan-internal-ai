@@ -7,19 +7,30 @@
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <div class="sb-app">
-      <header class="sb-header">
-        <span class="sb-logo">🛒</span>
-        <div>
-          <strong>Tư vấn Daisan</strong>
-          <small>VLXD · báo giá nhanh toàn quốc</small>
+    <div class="sb-layout">
+      <!-- Cột trái: hội thoại -->
+      <section class="sb-app">
+        <header class="sb-header">
+          <span class="sb-logo">🛒</span>
+          <div>
+            <strong>Tư vấn Daisan</strong>
+            <small>VLXD · báo giá nhanh toàn quốc</small>
+          </div>
+        </header>
+        <main class="sb-messages" id="messages"></main>
+        <form class="sb-composer" id="form">
+          <input id="input" type="text" autocomplete="off" placeholder="Bạn cần vật liệu gì? (vd: gạch 60x60…)" />
+          <button id="send" type="submit" aria-label="Gửi">➤</button>
+        </form>
+      </section>
+
+      <!-- Cột phải: kết quả sản phẩm (ẩn trên màn hẹp / widget) -->
+      <aside class="sb-products" id="productsPanel">
+        <div class="sb-products-head">🛍️ Sản phẩm gợi ý</div>
+        <div class="sb-products-grid" id="products">
+          <div class="sb-products-empty">Hỏi em về sản phẩm — kết quả sẽ hiện ở đây 👈</div>
         </div>
-      </header>
-      <main class="sb-messages" id="messages"></main>
-      <form class="sb-composer" id="form">
-        <input id="input" type="text" autocomplete="off" placeholder="Bạn cần vật liệu gì? (vd: gạch 60x60…)" />
-        <button id="send" type="submit" aria-label="Gửi">➤</button>
-      </form>
+      </aside>
     </div>
     <script src="/chat.js"></script>
   </body>

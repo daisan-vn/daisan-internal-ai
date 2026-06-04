@@ -2,6 +2,8 @@ const messagesEl = document.getElementById("messages");
 const form = document.getElementById("form");
 const input = document.getElementById("input");
 const sendBtn = document.getElementById("send");
+const productsPanel = document.getElementById("productsPanel");
+const productsGrid = document.getElementById("products");
 
 const site = new URLSearchParams(location.search).get("site") || "daisanstore";
 const history = [];
@@ -40,34 +42,45 @@ function bubble(role, html) {
 function renderText(s) { return esc(s).replace(/\*\*([^*]+?)\*\*/g, "<b>$1</b>").replace(/\n/g, "<br>"); }
 
 /* ---------- Thẻ sản phẩm (kiểu Tiki) ---------- */
-function renderProducts(products) {
-  const t = turn("bot");
-  const row = document.createElement("div");
-  row.className = "sb-cards";
-  products.forEach((p) => {
-    const card = document.createElement("div");
-    card.className = "sb-card";
-    const img = p.image
-      ? `<div class="sb-card-img"><img src="${esc(p.image)}" alt="" loading="lazy" onerror="this.parentElement.innerHTML='<span class=&quot;sb-ph&quot;>${catIcon(p.category)}</span>'"></div>`
-      : `<div class="sb-card-img"><span class="sb-ph">${catIcon(p.category)}</span></div>`;
-    const price = p.price
-      ? `<div class="sb-card-price">${vnd(p.price)}${p.unit ? `<span>/${esc(p.unit)}</span>` : ""}</div>`
-      : `<div class="sb-card-price contact">Liên hệ báo giá</div>`;
-    card.innerHTML =
-      img +
-      `<div class="sb-card-body">` +
-      `<div class="sb-card-name" title="${esc(p.name)}">${esc(p.name)}</div>` +
-      price +
-      (p.brand ? `<div class="sb-card-brand">${esc(p.brand)}</div>` : "") +
-      `<button class="sb-card-btn" type="button">Tư vấn ngay</button>` +
-      `</div>`;
-    card.querySelector(".sb-card-btn").addEventListener("click", () => {
-      if (!streaming) send("Tôi quan tâm sản phẩm: " + p.name + ". Tư vấn giúp tôi.");
-    });
-    row.appendChild(card);
+function productCard(p) {
+  const card = document.createElement("div");
+  card.className = "sb-card";
+  const img = p.image
+    ? `<div class="sb-card-img"><img src="${esc(p.image)}" alt="" loading="lazy" onerror="this.parentElement.innerHTML='<span class=&quot;sb-ph&quot;>${catIcon(p.category)}</span>'"></div>`
+    : `<div class="sb-card-img"><span class="sb-ph">${catIcon(p.category)}</span></div>`;
+  const price = p.price
+    ? `<div class="sb-card-price">${vnd(p.price)}${p.unit ? `<span>/${esc(p.unit)}</span>` : ""}</div>`
+    : `<div class="sb-card-price contact">Liên hệ báo giá</div>`;
+  card.innerHTML =
+    img +
+    `<div class="sb-card-body">` +
+    `<div class="sb-card-name" title="${esc(p.name)}">${esc(p.name)}</div>` +
+    price +
+    (p.brand ? `<div class="sb-card-brand">${esc(p.brand)}</div>` : "") +
+    `<button class="sb-card-btn" type="button">Tư vấn ngay</button>` +
+    `</div>`;
+  card.querySelector(".sb-card-btn").addEventListener("click", () => {
+    if (!streaming) send("Tôi quan tâm sản phẩm: " + p.name + ". Tư vấn giúp tôi.");
   });
-  t.appendChild(row);
-  scrollBottom();
+  return card;
+}
+
+// Màn rộng -> hiện sản phẩm ở CỘT PHẢI; màn hẹp/widget -> hiện trong khung chat.
+function isWide() { return window.matchMedia("(min-width: 760px)").matches; }
+
+function renderProducts(products) {
+  if (isWide() && productsGrid) {
+    productsGrid.innerHTML = "";
+    products.forEach((p) => productsGrid.appendChild(productCard(p)));
+    bubble("bot", `👉 Em đã hiển thị <b>${products.length}</b> sản phẩm ở cột bên phải, anh/chị xem giúp em nhé.`);
+  } else {
+    const t = turn("bot");
+    const row = document.createElement("div");
+    row.className = "sb-cards";
+    products.forEach((p) => row.appendChild(productCard(p)));
+    t.appendChild(row);
+    scrollBottom();
+  }
 }
 
 /* ---------- Thẻ cửa hàng gần nhất ---------- */
