@@ -27,6 +27,24 @@ function isDept(d: string): boolean {
   return (ALL_DEPTS as readonly string[]).includes(d);
 }
 
+/**
+ * Map model Odoo -> phòng ban, để chặn DỮ LIỆU SỐNG theo quyền.
+ * Trả null nếu model thuộc loại chung (vd res.partner) -> không chặn.
+ * (Chỉ phòng nằm trong RESTRICTED_DEPTS + chưa được cấp mới thực sự bị chặn.)
+ */
+const ODOO_DEPT_PREFIXES: Array<[string, string]> = [
+  ["account.", "ketoan"],   // hóa đơn, bút toán, công nợ, thanh toán
+  ["purchase.", "mua"],      // đơn mua, NCC
+  ["crm.", "crm"],
+  ["sale.", "crm"],          // đơn bán thuộc kinh doanh
+  ["stock.", "kho"],         // tồn kho, phiếu kho
+];
+export function odooModelDept(model: string): string | null {
+  const m = (model || "").toLowerCase();
+  for (const [prefix, dept] of ODOO_DEPT_PREFIXES) if (m.startsWith(prefix)) return dept;
+  return null;
+}
+
 /** Danh sách phòng ban nhạy cảm (đã chuẩn hóa, chỉ giữ phòng hợp lệ). */
 export function restrictedDepts(env: Env): string[] {
   return (env.RESTRICTED_DEPTS || "")

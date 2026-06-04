@@ -7,7 +7,7 @@ import { recordAccess, isAdmin, listAccess } from "./access";
 import { gdriveConfigured, runSyncWithStatus, readSyncStatus } from "./gdrive";
 import { getStats } from "./stats";
 import { setFeedback } from "./feedback";
-import { blockedDeptsFor, allowedDeptsFor, listGrants, setGrant } from "./rbac";
+import { blockedDeptsFor, allowedDeptsFor, listGrants, setGrant, odooModelDept, DEPT_LABELS } from "./rbac";
 import * as hist from "./history";
 
 export default {
@@ -212,9 +212,16 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext): Pr
   const context = buildContext(chunks);
   const useOdoo = odooConfigured(env);
   const today = new Date().toISOString().slice(0, 10);
-  const system = useOdoo
+  let system = useOdoo
     ? `${SYSTEM_PROMPT}\n\n${odooSystemNote(today)}\n\n${context}`
     : `${SYSTEM_PROMPT}\n\n${context}`;
+  // Phân quyền dữ liệu Odoo sống: báo cho Claude các phòng người dùng không được xem.
+  if (useOdoo && blocked.length) {
+    const labels = blocked.map((d) => DEPT_LABELS[d] || d).join(", ");
+    system += `\n\nPHÂN QUYỀN: Người dùng KHÔNG được phép xem dữ liệu Odoo thuộc phòng: ${labels}. ` +
+      `Nếu câu hỏi cần dữ liệu các phòng này (vd account.* = kế toán/công nợ/hóa đơn, purchase.* = mua hàng), ` +
+      `hãy TỪ CHỐI lịch sự và đề nghị liên hệ quản trị để được cấp quyền — KHÔNG gọi công cụ cho các model đó.`;
+  }
 
   // 2) Sinh câu trả lời bằng Claude, stream về client; lưu lại khi xong.
   //    Nếu đã nối Odoo -> dùng vòng lặp tool-calling để Claude tra cứu dữ liệu sống.
@@ -235,7 +242,16 @@ async function handleChat(request: Request, env: Env, ctx: ExecutionContext): Pr
             system,
             messages,
             ODOO_TOOLS,
-            (name, input) => runOdooTool(env, name, input),
+            (name, input) => {
+              // Chặn cứng theo phân quyền: nếu model thuộc phòng bị chặn -> không cho gọi.
+              const dept = odooModelDept(typeof input.model === "string" ? input.model : "");
+              if (dept && blocked.includes(dept)) {
+                throw new Error(
+                  `Bạn không có quyền xem dữ liệu phòng ${DEPT_LABELS[dept] || dept} trong Odoo. Vui lòng liên hệ quản trị để được cấp quyền.`,
+                );
+              }
+              return runOdooTool(env, name, input);
+            },
             describeOdooTool,
           )) {
             if (ev.type === "text") {
