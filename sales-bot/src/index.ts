@@ -76,6 +76,13 @@ export default {
       }
     }
 
+    // Chẩn đoán đường dẫn tìm kiếm: nguồn nào (shopify/mock) + vài sản phẩm mẫu.
+    if (url.pathname === "/api/debug/search") {
+      const q = url.searchParams.get("q") || "gạch";
+      const r = await searchProducts(env, q, 6);
+      return Response.json({ q, source: r.source, count: r.products.length, names: r.products.map((p) => p.name), sample: r.products[0] }, { headers: cors });
+    }
+
     if (url.pathname === "/api/chat" && request.method === "POST") return handleChat(request, env, cors);
     if (url.pathname === "/api/lead" && request.method === "POST") return handleLead(request, env, cors);
 

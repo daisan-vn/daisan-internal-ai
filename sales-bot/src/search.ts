@@ -54,7 +54,7 @@ async function loadShopify(env: Env): Promise<Product[]> {
     }
     if (prods.length < 250) break;
   }
-  shopifyCache = { at: Date.now(), products: out };
+  if (out.length) shopifyCache = { at: Date.now(), products: out }; // chỉ cache khi CÓ hàng (tránh kẹt rỗng 10 phút)
   return out;
 }
 
