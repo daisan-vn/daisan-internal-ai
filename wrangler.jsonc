@@ -3,6 +3,9 @@
   // Docs: https://developers.cloudflare.com/workers/wrangler/configuration/
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "daisan-internal-ai",
+  // Tài khoản chứa Worker (Nhamphongdaijsc@gmail.com's Account). Ghi cố định để
+  // wrangler không bị nhập nhằng khi token có quyền trên nhiều account.
+  "account_id": "4916931057954a4b6187316d83b4a5f2",
   "main": "src/index.ts",
   // Tắt URL *.workers.dev — chỉ cho truy cập qua troly.daisan.ai (đã bọc Cloudflare Access).
   "workers_dev": false,
