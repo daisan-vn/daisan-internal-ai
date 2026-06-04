@@ -40,8 +40,10 @@ export default {
     if (path === "/api/assign/options" && request.method === "GET") {
       if (!canAssign(env, hist.userEmail(request))) return Response.json({ error: "Bạn không có quyền giao việc." }, { status: 403 });
       if (!odooConfigured(env)) return Response.json({ error: "Chưa kết nối Odoo." }, { status: 400 });
-      const [projects, assignees] = await Promise.all([listProjects(env), listAssignees(env)]);
-      return Response.json({ projects, assignees });
+      const out: { projects: unknown[]; assignees: unknown[]; errors: string[] } = { projects: [], assignees: [], errors: [] };
+      try { out.projects = await listProjects(env); } catch (e) { out.errors.push("Dự án: " + (e instanceof Error ? e.message : String(e))); }
+      try { out.assignees = await listAssignees(env); } catch (e) { out.errors.push("Người nhận: " + (e instanceof Error ? e.message : String(e))); }
+      return Response.json(out);
     }
     if (path === "/api/assign" && request.method === "POST") {
       if (!canAssign(env, hist.userEmail(request))) return Response.json({ error: "Bạn không có quyền giao việc." }, { status: 403 });

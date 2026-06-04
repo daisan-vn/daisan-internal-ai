@@ -476,16 +476,24 @@ function closeAssign() { if (assignModal) assignModal.hidden = true; }
 async function openAssign() {
   assignModal.hidden = false;
   if (assignOptionsLoaded) return;
+  asgProject.innerHTML = '<option value="">(Không thuộc dự án)</option>';
   asgStatus.textContent = "Đang tải dự án & nhân sự…"; asgStatus.style.color = "var(--muted)";
   try {
     const res = await fetch("/api/assign/options");
     const d = await res.json();
     if (!res.ok) { asgStatus.textContent = "⚠️ " + (d.error || "Lỗi tải"); asgStatus.style.color = "#ff8a8a"; return; }
-    asgProject.innerHTML = '<option value="">(Không thuộc dự án)</option>' +
-      (d.projects || []).map((p) => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("");
+    if ((d.projects || []).length) {
+      asgProject.innerHTML += d.projects.map((p) => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("");
+    }
     asgUsers.innerHTML = (d.assignees || []).map((u) => `<option value="${u.id}">${escapeHtml(u.name)}</option>`).join("");
-    assignOptionsLoaded = true;
-    asgStatus.textContent = "";
+    // Coi như đã tải khi có người nhận (không có người nhận thì cho thử lại lần sau).
+    assignOptionsLoaded = (d.assignees || []).length > 0;
+    const warn = [];
+    if (!(d.projects || []).length) warn.push("Chưa lấy được dự án nào — vẫn có thể giao việc không thuộc dự án.");
+    if (!(d.assignees || []).length) warn.push("Chưa lấy được danh sách người nhận từ Odoo.");
+    if (d.errors && d.errors.length) warn.push(...d.errors);
+    asgStatus.innerHTML = warn.length ? "⚠️ " + warn.map(escapeHtml).join("<br>") : "";
+    asgStatus.style.color = warn.length ? "#e0a341" : "";
   } catch (e) { asgStatus.textContent = "⚠️ " + e.message; asgStatus.style.color = "#ff8a8a"; }
 }
 if (assignBtn) assignBtn.addEventListener("click", () => { closeSidebar(); openAssign(); });
