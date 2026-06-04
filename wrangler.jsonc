@@ -55,7 +55,7 @@
 
     // Email được xem trang admin/lịch sử đăng nhập (phân tách bằng dấu phẩy).
     // Thêm email quản lý khác vào đây nếu muốn cho họ xem. Để trống = mọi người xem được.
-    "ADMIN_EMAILS": "nhamphongdaijsc@gmail.com",
+    "ADMIN_EMAILS": "nhamphongdaijsc@gmail.com,nhamduong2312@gmail.com,khanh.nhamphong@daisan.vn",
 
     // Phòng ban NHẠY CẢM: chỉ admin hoặc người được cấp quyền (tab Phân quyền) mới
     // xem được tài liệu của phòng đó. Phòng không liệt kê = mở cho mọi nhân viên.
