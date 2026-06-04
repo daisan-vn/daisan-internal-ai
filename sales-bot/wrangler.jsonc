@@ -3,6 +3,7 @@
   // Không có binding Odoo full-read; chỉ dữ liệu công khai (sản phẩm/cửa hàng).
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "daisan-sales-bot",
+  "account_id": "4916931057954a4b6187316d83b4a5f2",
   "main": "src/index.ts",
   "compatibility_date": "2025-01-01",
   "compatibility_flags": ["nodejs_compat"],
