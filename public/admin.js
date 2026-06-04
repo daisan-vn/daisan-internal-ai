@@ -80,14 +80,16 @@ const tabAccessBtn = document.getElementById("tabAccessBtn");
 const tabStatsBtn = document.getElementById("tabStatsBtn");
 const tabGrantsBtn = document.getElementById("tabGrantsBtn");
 const tabReportsBtn = document.getElementById("tabReportsBtn");
+const tabAlertsBtn = document.getElementById("tabAlertsBtn");
 const sectionByTab = {
   docs: document.getElementById("tab-docs"),
   stats: document.getElementById("tab-stats"),
   reports: document.getElementById("tab-reports"),
+  alerts: document.getElementById("tab-alerts"),
   grants: document.getElementById("tab-grants"),
   access: document.getElementById("tab-access"),
 };
-let accessLoaded = false, statsLoaded = false, grantsLoaded = false, reportsLoaded = false;
+let accessLoaded = false, statsLoaded = false, grantsLoaded = false, reportsLoaded = false, alertsLoaded = false;
 
 tabBtns.forEach((t) => t.addEventListener("click", () => {
   const name = t.dataset.tab;
@@ -97,6 +99,7 @@ tabBtns.forEach((t) => t.addEventListener("click", () => {
   if (name === "stats" && !statsLoaded) { statsLoaded = true; loadStats(); }
   if (name === "grants" && !grantsLoaded) { grantsLoaded = true; loadGrants(); }
   if (name === "reports" && !reportsLoaded) { reportsLoaded = true; loadReports(); }
+  if (name === "alerts" && !alertsLoaded) { alertsLoaded = true; loadAlerts(); }
 }));
 
 // Ẩn các tab quản trị nếu không phải quản trị viên.
@@ -108,9 +111,81 @@ tabBtns.forEach((t) => t.addEventListener("click", () => {
       if (tabStatsBtn) tabStatsBtn.style.display = "none";
       if (tabGrantsBtn) tabGrantsBtn.style.display = "none";
       if (tabReportsBtn) tabReportsBtn.style.display = "none";
+      if (tabAlertsBtn) tabAlertsBtn.style.display = "none";
     }
   } catch {}
 })();
+
+/* ===================== Cảnh báo giám sát ===================== */
+const alBody = document.getElementById("alBody");
+const alTime = document.getElementById("alTime");
+const alRun = document.getElementById("alRun");
+const alStatus = document.getElementById("alStatus");
+
+function fmtVnd(n) { return Math.round(n || 0).toLocaleString("vi-VN") + " ₫"; }
+function sevAttr(n) { return n > 0 ? 'style="color:#ff8a8a;font-weight:700"' : 'style="color:#4ade80;font-weight:700"'; }
+
+function renderAlerts(r) {
+  if (!r) { alBody.innerHTML = '<div class="card2"><p class="note">Chưa có lần kiểm tra nào. Bấm "Kiểm tra ngay".</p></div>'; return; }
+  if (r.generated_at) alTime.textContent = "Lần kiểm tra gần nhất: " + fmtTime(r.generated_at);
+  let h = "";
+
+  const rc = r.receivable || {};
+  h += '<div class="card2"><h2>💰 Công nợ phải thu quá hạn</h2>';
+  if (!rc.ok) h += '<p class="note">⚠️ Không kiểm tra được: ' + esc(rc.error || "") + "</p>";
+  else {
+    h += "<p>Số dòng quá hạn: <span " + sevAttr(rc.count) + ">" + (rc.count || 0) + "</span> · Tổng quá hạn: <b>" + fmtVnd(rc.total) + "</b></p>";
+    if (rc.top && rc.top.length) h += "<table><thead><tr><th>Khách hàng</th><th>Số tiền quá hạn</th></tr></thead><tbody>" + rc.top.map((t) => "<tr><td>" + esc(t.partner) + "</td><td>" + fmtVnd(t.amount) + "</td></tr>").join("") + "</tbody></table>";
+  }
+  h += "</div>";
+
+  const ns = r.negativeStock || {};
+  h += '<div class="card2"><h2>📦 Tồn kho âm</h2>';
+  if (!ns.ok) h += '<p class="note">⚠️ Không kiểm tra được: ' + esc(ns.error || "") + "</p>";
+  else {
+    h += "<p>Số dòng tồn âm: <span " + sevAttr(ns.count) + ">" + (ns.count || 0) + "</span></p>";
+    if (ns.items && ns.items.length) h += "<table><thead><tr><th>Sản phẩm</th><th>Kho</th><th>Số lượng</th></tr></thead><tbody>" + ns.items.map((t) => '<tr><td>' + esc(t.product) + "</td><td>" + esc(t.location) + '</td><td style="color:#ff8a8a">' + t.qty + "</td></tr>").join("") + "</tbody></table>";
+  }
+  h += "</div>";
+
+  const ur = r.unreconciled || {};
+  h += '<div class="card2"><h2>🏦 Quỹ tiền / ngân hàng chưa đối chiếu</h2>';
+  if (!ur.ok) h += '<p class="note">⚠️ Không kiểm tra được: ' + esc(ur.error || "") + "</p>";
+  else {
+    h += "<p>Số dòng chưa đối chiếu: <span " + sevAttr(ur.count) + ">" + (ur.count || 0) + "</span> · Tổng: <b>" + fmtVnd(ur.total) + "</b></p>";
+    if (ur.items && ur.items.length) h += "<table><thead><tr><th>Ngày</th><th>Diễn giải</th><th>Sổ quỹ/NH</th><th>Số tiền</th></tr></thead><tbody>" + ur.items.slice(0, 30).map((t) => "<tr><td>" + esc(t.date || "") + "</td><td>" + esc(t.ref) + "</td><td>" + esc(t.journal) + "</td><td>" + fmtVnd(t.amount) + "</td></tr>").join("") + "</tbody></table>";
+  }
+  h += "</div>";
+
+  alBody.innerHTML = h;
+}
+
+async function loadAlerts() {
+  const allowed = document.getElementById("alertsAllowed");
+  const denied = document.getElementById("alertsDenied");
+  try {
+    const res = await fetch("/api/admin/alerts");
+    if (res.status === 403) { if (allowed) allowed.style.display = "none"; if (denied) denied.hidden = false; return; }
+    if (allowed) allowed.style.display = ""; if (denied) denied.hidden = true;
+    const d = await res.json();
+    renderAlerts(d.latest);
+  } catch {}
+}
+
+if (alRun) alRun.addEventListener("click", async () => {
+  alRun.disabled = true;
+  alStatus.textContent = "⏳ Đang kiểm tra dữ liệu Odoo…";
+  alStatus.style.color = "var(--muted)";
+  try {
+    const d = await (await fetch("/api/admin/alerts", { method: "POST" })).json();
+    renderAlerts(d.result);
+    alStatus.textContent = "✅ Đã kiểm tra xong.";
+    alStatus.style.color = "#4ade80";
+  } catch (e) {
+    alStatus.textContent = "❌ " + e.message; alStatus.style.color = "#ff8a8a";
+  }
+  alRun.disabled = false;
+});
 
 /* ===================== Báo cáo tự động ===================== */
 const repRows = document.getElementById("repRows");

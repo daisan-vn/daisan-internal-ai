@@ -9,6 +9,7 @@ import { getStats } from "./stats";
 import { setFeedback } from "./feedback";
 import { blockedDeptsFor, allowedDeptsFor, listGrants, setGrant, odooModelDept, DEPT_LABELS } from "./rbac";
 import { generateReport, listReports, getReport } from "./reports";
+import { runAlerts, getAlertsView } from "./alerts";
 import * as hist from "./history";
 
 export default {
@@ -80,6 +81,16 @@ export default {
       if (!isAdmin(env, hist.userEmail(request))) return Response.json({ error: "Bạn không có quyền." }, { status: 403 });
       const r = await getReport(env, reportMatch[1]);
       return r ? Response.json(r) : Response.json({ error: "Không tìm thấy" }, { status: 404 });
+    }
+
+    // Cảnh báo công nợ quá hạn / tồn kho âm / quỹ chưa đối chiếu (chỉ admin).
+    if (path === "/api/admin/alerts" && request.method === "GET") {
+      if (!isAdmin(env, hist.userEmail(request))) return Response.json({ error: "Bạn không có quyền." }, { status: 403 });
+      return Response.json(await getAlertsView(env));
+    }
+    if (path === "/api/admin/alerts" && request.method === "POST") {
+      if (!isAdmin(env, hist.userEmail(request))) return Response.json({ error: "Bạn không có quyền." }, { status: 403 });
+      return Response.json({ result: await runAlerts(env) });
     }
 
     // Đồng bộ Google Drive -> kho tài liệu (chỉ admin). GET xem trạng thái, POST chạy.
@@ -197,6 +208,8 @@ export default {
   async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     if (event.cron === "0 1 * * 1") {
       ctx.waitUntil(generateReport(env, "weekly"));
+    } else if (event.cron === "0 23 * * *") {
+      ctx.waitUntil(runAlerts(env));
     } else if (gdriveConfigured(env)) {
       ctx.waitUntil(runSyncWithStatus(env));
     }

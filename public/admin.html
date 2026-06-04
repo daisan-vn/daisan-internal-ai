@@ -61,6 +61,7 @@
         <button class="tab active" data-tab="docs">📄 Tài liệu</button>
         <button class="tab" data-tab="stats" id="tabStatsBtn">📊 Thống kê</button>
         <button class="tab" data-tab="reports" id="tabReportsBtn">📈 Báo cáo</button>
+        <button class="tab" data-tab="alerts" id="tabAlertsBtn">🚨 Cảnh báo</button>
         <button class="tab" data-tab="grants" id="tabGrantsBtn">👥 Phân quyền</button>
         <button class="tab" data-tab="access" id="tabAccessBtn">🔐 Lịch sử đăng nhập</button>
       </div>
@@ -169,6 +170,24 @@
           </div>
         </div>
         <div id="reportsDenied" class="denied" hidden>🔒 Chỉ quản trị viên mới xem được mục này.</div>
+      </section>
+
+      <!-- TAB: Cảnh báo -->
+      <section id="tab-alerts" hidden>
+        <div id="alertsAllowed">
+          <div class="card2">
+            <div class="row" style="justify-content:space-between; align-items:flex-start">
+              <div>
+                <h2 style="margin:0 0 6px">🚨 Cảnh báo giám sát</h2>
+                <p class="note" id="alTime" style="margin:0">Tự động kiểm tra <b>mỗi sáng 06:00</b>: công nợ quá hạn, tồn kho âm, quỹ chưa đối chiếu.</p>
+              </div>
+              <button class="btn-primary" id="alRun">🔄 Kiểm tra ngay</button>
+            </div>
+            <div class="status" id="alStatus"></div>
+          </div>
+          <div id="alBody"></div>
+        </div>
+        <div id="alertsDenied" class="denied" hidden>🔒 Chỉ quản trị viên mới xem được mục này.</div>
       </section>
 
       <!-- TAB: Phân quyền phòng ban -->
