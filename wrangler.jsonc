@@ -61,8 +61,9 @@
     "GDRIVE_FOLDER_ID": "19VjUs1ILWpbtjbKbNzROCyZwrkkespUj"
   },
 
-  // Cron: tự động đồng bộ Google Drive mỗi ngày lúc 02:00 giờ VN (19:00 UTC).
-  "triggers": { "crons": ["0 19 * * *"] },
+  // Cron: (1) đồng bộ Google Drive mỗi ngày 02:00 VN (19:00 UTC);
+  //       (2) báo cáo kinh doanh tuần, sáng thứ 2 08:00 VN (01:00 UTC thứ 2).
+  "triggers": { "crons": ["0 19 * * *", "0 1 * * 1"] },
 
   // Custom domain để nhân viên truy cập; sẽ bọc Cloudflare Access (chỉ email @daisan).
   "routes": [{ "pattern": "troly.daisan.ai", "custom_domain": true }],

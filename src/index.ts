@@ -8,6 +8,7 @@ import { gdriveConfigured, runSyncWithStatus, readSyncStatus } from "./gdrive";
 import { getStats } from "./stats";
 import { setFeedback } from "./feedback";
 import { blockedDeptsFor, allowedDeptsFor, listGrants, setGrant, odooModelDept, DEPT_LABELS } from "./rbac";
+import { generateReport, listReports, getReport } from "./reports";
 import * as hist from "./history";
 
 export default {
@@ -62,6 +63,23 @@ export default {
       }
       const days = Number(url.searchParams.get("days")) || 0;
       return Response.json(await getStats(env, days));
+    }
+
+    // Báo cáo tự động (chỉ admin): liệt kê / xem 1 báo cáo / tạo ngay.
+    if (path === "/api/admin/reports" && request.method === "GET") {
+      if (!isAdmin(env, hist.userEmail(request))) return Response.json({ error: "Bạn không có quyền." }, { status: 403 });
+      return Response.json({ reports: await listReports(env) });
+    }
+    if (path === "/api/admin/reports" && request.method === "POST") {
+      if (!isAdmin(env, hist.userEmail(request))) return Response.json({ error: "Bạn không có quyền." }, { status: 403 });
+      ctx.waitUntil(generateReport(env, "manual"));
+      return Response.json({ started: true });
+    }
+    const reportMatch = path.match(/^\/api\/admin\/reports\/([A-Za-z0-9-]+)$/);
+    if (reportMatch && request.method === "GET") {
+      if (!isAdmin(env, hist.userEmail(request))) return Response.json({ error: "Bạn không có quyền." }, { status: 403 });
+      const r = await getReport(env, reportMatch[1]);
+      return r ? Response.json(r) : Response.json({ error: "Không tìm thấy" }, { status: 404 });
     }
 
     // Đồng bộ Google Drive -> kho tài liệu (chỉ admin). GET xem trạng thái, POST chạy.
@@ -173,9 +191,15 @@ export default {
     return env.ASSETS.fetch(request);
   },
 
-  // Cron: tự động đồng bộ Google Drive -> kho tài liệu (xem triggers trong wrangler.jsonc).
-  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    if (gdriveConfigured(env)) ctx.waitUntil(runSyncWithStatus(env));
+  // Cron (xem triggers trong wrangler.jsonc):
+  //  - "0 1 * * 1" (sáng thứ 2): tạo báo cáo kinh doanh tuần.
+  //  - còn lại (hằng ngày): đồng bộ Google Drive -> kho tài liệu.
+  async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    if (event.cron === "0 1 * * 1") {
+      ctx.waitUntil(generateReport(env, "weekly"));
+    } else if (gdriveConfigured(env)) {
+      ctx.waitUntil(runSyncWithStatus(env));
+    }
   },
 } satisfies ExportedHandler<Env>;
 

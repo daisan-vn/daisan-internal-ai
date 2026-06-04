@@ -50,6 +50,16 @@ CREATE TABLE IF NOT EXISTS dept_grants (
   PRIMARY KEY (user_email, dept)
 );
 
+-- Báo cáo tự động (vd báo cáo kinh doanh tuần) do cron sinh ra, lưu để xem lại.
+CREATE TABLE IF NOT EXISTS reports (
+  id         TEXT PRIMARY KEY,
+  kind       TEXT NOT NULL,         -- weekly | manual | ...
+  title      TEXT,
+  content    TEXT NOT NULL,         -- nội dung Markdown
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_reports_created ON reports (created_at DESC);
+
 -- Trạng thái đồng bộ Google Drive -> R2 (1 dòng id='drive').
 CREATE TABLE IF NOT EXISTS sync_status (
   id          TEXT PRIMARY KEY,

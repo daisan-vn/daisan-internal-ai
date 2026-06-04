@@ -39,6 +39,14 @@
       .badge-on { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #4ade80; margin-right: 7px; vertical-align: middle; box-shadow: 0 0 0 3px rgba(74,222,128,.18); }
       .mono { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; color: var(--muted); }
       .denied { text-align: center; padding: 40px 20px; color: var(--muted); }
+      /* Báo cáo */
+      .rep-item { cursor: pointer; }
+      .rep-item:hover td { color: var(--accent); }
+      .report-body { color: var(--text); line-height: 1.6; max-height: 70vh; overflow: auto; }
+      .report-body h3, .report-body h4, .report-body h5 { margin: 14px 0 6px; }
+      .report-body table { margin: 10px 0; }
+      .report-body p { margin: 8px 0; }
+      .report-body ul { margin: 8px 0; padding-left: 22px; }
       @media (max-width: 640px) { .stats { grid-template-columns: 1fr 1fr; } }
     </style>
   </head>
@@ -52,6 +60,7 @@
       <div class="tabs">
         <button class="tab active" data-tab="docs">📄 Tài liệu</button>
         <button class="tab" data-tab="stats" id="tabStatsBtn">📊 Thống kê</button>
+        <button class="tab" data-tab="reports" id="tabReportsBtn">📈 Báo cáo</button>
         <button class="tab" data-tab="grants" id="tabGrantsBtn">👥 Phân quyền</button>
         <button class="tab" data-tab="access" id="tabAccessBtn">🔐 Lịch sử đăng nhập</button>
       </div>
@@ -132,6 +141,34 @@
           </div>
         </div>
         <div id="statsDenied" class="denied" hidden>🔒 Bạn không có quyền xem thống kê.<br /><span class="note">Chỉ tài khoản quản trị (cấu hình <b>ADMIN_EMAILS</b>) mới xem được.</span></div>
+      </section>
+
+      <!-- TAB: Báo cáo tự động -->
+      <section id="tab-reports" hidden>
+        <div id="reportsAllowed">
+          <div class="card2">
+            <div class="row" style="justify-content:space-between; align-items:flex-start">
+              <div>
+                <h2 style="margin:0 0 6px">📈 Báo cáo tự động</h2>
+                <p class="note" style="margin:0">Tự tạo <b>báo cáo kinh doanh tuần</b> vào <b>sáng thứ 2 hằng tuần</b> (từ dữ liệu Odoo). Hoặc bấm tạo ngay bên phải.</p>
+              </div>
+              <button class="btn-primary" id="repGen">📝 Tạo báo cáo ngay</button>
+            </div>
+            <div class="status" id="repStatus"></div>
+          </div>
+          <div class="row" style="align-items:flex-start; gap:18px; flex-wrap:wrap">
+            <div class="card2" style="flex:1; min-width:240px">
+              <h2>Danh sách</h2>
+              <table><thead><tr><th>Báo cáo</th><th>Lúc</th></tr></thead><tbody id="repRows"></tbody></table>
+              <p class="note" id="repEmpty" style="display:none">Chưa có báo cáo nào.</p>
+            </div>
+            <div class="card2" style="flex:2; min-width:320px">
+              <h2 id="repViewTitle">Nội dung</h2>
+              <div id="repView" class="report-body note">Chọn một báo cáo bên trái để xem.</div>
+            </div>
+          </div>
+        </div>
+        <div id="reportsDenied" class="denied" hidden>🔒 Chỉ quản trị viên mới xem được mục này.</div>
       </section>
 
       <!-- TAB: Phân quyền phòng ban -->

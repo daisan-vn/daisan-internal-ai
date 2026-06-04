@@ -79,13 +79,15 @@ const tabBtns = document.querySelectorAll(".tab");
 const tabAccessBtn = document.getElementById("tabAccessBtn");
 const tabStatsBtn = document.getElementById("tabStatsBtn");
 const tabGrantsBtn = document.getElementById("tabGrantsBtn");
+const tabReportsBtn = document.getElementById("tabReportsBtn");
 const sectionByTab = {
   docs: document.getElementById("tab-docs"),
   stats: document.getElementById("tab-stats"),
+  reports: document.getElementById("tab-reports"),
   grants: document.getElementById("tab-grants"),
   access: document.getElementById("tab-access"),
 };
-let accessLoaded = false, statsLoaded = false, grantsLoaded = false;
+let accessLoaded = false, statsLoaded = false, grantsLoaded = false, reportsLoaded = false;
 
 tabBtns.forEach((t) => t.addEventListener("click", () => {
   const name = t.dataset.tab;
@@ -94,6 +96,7 @@ tabBtns.forEach((t) => t.addEventListener("click", () => {
   if (name === "access" && !accessLoaded) { accessLoaded = true; loadAccess(); }
   if (name === "stats" && !statsLoaded) { statsLoaded = true; loadStats(); }
   if (name === "grants" && !grantsLoaded) { grantsLoaded = true; loadGrants(); }
+  if (name === "reports" && !reportsLoaded) { reportsLoaded = true; loadReports(); }
 }));
 
 // Ẩn các tab quản trị nếu không phải quản trị viên.
@@ -104,9 +107,100 @@ tabBtns.forEach((t) => t.addEventListener("click", () => {
       if (tabAccessBtn) tabAccessBtn.style.display = "none";
       if (tabStatsBtn) tabStatsBtn.style.display = "none";
       if (tabGrantsBtn) tabGrantsBtn.style.display = "none";
+      if (tabReportsBtn) tabReportsBtn.style.display = "none";
     }
   } catch {}
 })();
+
+/* ===================== Báo cáo tự động ===================== */
+const repRows = document.getElementById("repRows");
+const repEmpty = document.getElementById("repEmpty");
+const repView = document.getElementById("repView");
+const repViewTitle = document.getElementById("repViewTitle");
+const repGen = document.getElementById("repGen");
+const repStatus = document.getElementById("repStatus");
+let repNewestAt = 0;
+
+function inl(s) { return s.replace(/\*\*([^*]+?)\*\*/g, "<strong>$1</strong>").replace(/`([^`]+)`/g, "<code>$1</code>"); }
+function mdLite(md) {
+  const lines = esc(md || "").replace(/\r\n/g, "\n").split("\n");
+  let html = "", i = 0;
+  const cells = (r) => r.replace(/^\s*\|?/, "").replace(/\|?\s*$/, "").split("|").map((c) => c.trim());
+  while (i < lines.length) {
+    const l = lines[i];
+    if (/^\s*$/.test(l)) { i++; continue; }
+    const h = l.match(/^(#{1,6})\s+(.*)$/);
+    if (h) { const lv = Math.min(h[1].length + 2, 6); html += "<h" + lv + ">" + inl(h[2]) + "</h" + lv + ">"; i++; continue; }
+    if (l.includes("|") && i + 1 < lines.length && /^\s*\|?[\s:|-]*-[\s:|-]*\|?\s*$/.test(lines[i + 1])) {
+      const head = cells(l); i += 2; let rows = "";
+      while (i < lines.length && lines[i].includes("|") && !/^\s*$/.test(lines[i])) { rows += "<tr>" + cells(lines[i]).map((c) => "<td>" + inl(c) + "</td>").join("") + "</tr>"; i++; }
+      html += "<table><thead><tr>" + head.map((c) => "<th>" + inl(c) + "</th>").join("") + "</tr></thead><tbody>" + rows + "</tbody></table>"; continue;
+    }
+    if (/^\s*[-*]\s+/.test(l)) { let it = ""; while (i < lines.length && /^\s*[-*]\s+/.test(lines[i])) it += "<li>" + inl(lines[i++].replace(/^\s*[-*]\s+/, "")) + "</li>"; html += "<ul>" + it + "</ul>"; continue; }
+    const buf = [l]; i++;
+    while (i < lines.length && !/^\s*$/.test(lines[i]) && !/^(#{1,6}\s|\s*[-*]\s|\|)/.test(lines[i])) buf.push(lines[i++]);
+    html += "<p>" + inl(buf.join("<br>")) + "</p>";
+  }
+  return html;
+}
+
+async function loadReports() {
+  const allowed = document.getElementById("reportsAllowed");
+  const denied = document.getElementById("reportsDenied");
+  try {
+    const res = await fetch("/api/admin/reports");
+    if (res.status === 403) { if (allowed) allowed.style.display = "none"; if (denied) denied.hidden = false; return; }
+    if (allowed) allowed.style.display = ""; if (denied) denied.hidden = true;
+    const { reports } = await res.json();
+    repEmpty.style.display = reports.length ? "none" : "block";
+    repNewestAt = reports.length ? reports[0].created_at : 0;
+    repRows.innerHTML = "";
+    for (const r of reports) {
+      const tr = document.createElement("tr");
+      tr.className = "rep-item";
+      tr.innerHTML = "<td>" + esc(r.title || ("Báo cáo " + r.kind)) + "</td><td>" + fmtTime(r.created_at) + "</td>";
+      tr.addEventListener("click", () => viewReport(r.id));
+      repRows.appendChild(tr);
+    }
+    if (reports.length && repView.dataset.loaded !== "1") viewReport(reports[0].id);
+  } catch {}
+}
+
+async function viewReport(id) {
+  try {
+    const r = await (await fetch("/api/admin/reports/" + encodeURIComponent(id))).json();
+    repViewTitle.textContent = r.title || "Nội dung";
+    repView.innerHTML = mdLite(r.content || "");
+    repView.dataset.loaded = "1";
+  } catch {}
+}
+
+if (repGen) repGen.addEventListener("click", async () => {
+  repGen.disabled = true;
+  repStatus.textContent = "⏳ Đang tạo báo cáo (truy vấn Odoo)… có thể mất ~30 giây.";
+  repStatus.style.color = "var(--muted)";
+  const before = repNewestAt;
+  try {
+    await fetch("/api/admin/reports", { method: "POST" });
+    let tries = 0;
+    const poll = setInterval(async () => {
+      tries++;
+      await loadReports();
+      if (repNewestAt > before) {
+        clearInterval(poll);
+        repStatus.textContent = "✅ Đã tạo báo cáo mới.";
+        repStatus.style.color = "#4ade80";
+        repGen.disabled = false;
+      } else if (tries >= 15) {
+        clearInterval(poll);
+        repStatus.textContent = "Báo cáo đang chạy lâu hơn dự kiến — bấm tab Báo cáo lại sau ít phút để xem.";
+        repGen.disabled = false;
+      }
+    }, 4000);
+  } catch (e) {
+    repStatus.textContent = "❌ " + e.message; repStatus.style.color = "#ff8a8a"; repGen.disabled = false;
+  }
+});
 
 /* ===================== Phân quyền phòng ban ===================== */
 const grEmail = document.getElementById("grEmail");
