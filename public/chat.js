@@ -143,6 +143,8 @@ function renderFinal(role, content, sources, messageId, feedback) {
     bubble.__md = content; bubble.__sources = sources || [];
     renderSources(bubble, sources);
     addActions(bubble, messageId, feedback);
+  } else if (role === "user") {
+    addUserActions(bubble, history.length - 1);
   }
 }
 function renderSources(bubble, sources) {
@@ -212,6 +214,75 @@ function addActions(bubble, messageId, feedback) {
   if (messageId) addFeedback(bar, messageId, feedback || 0);
   addExportControl(bar, bubble);
   bubble.parentElement.appendChild(bar);
+}
+
+/* ---- Thanh nút cho CÂU HỎI của người dùng (Copy / Sửa & gửi lại) ---- */
+function addUserActions(bubble, histIndex) {
+  const bar = document.createElement("div");
+  bar.className = "actions user-actions";
+  const mk = (label, icon, fn) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.innerHTML = `${icon}<span data-label="${label}">${label}</span>`;
+    b.addEventListener("click", () => fn(b));
+    bar.appendChild(b);
+  };
+  mk("Copy", "📋", async (b) => {
+    try { await navigator.clipboard.writeText(bubble.textContent); flash(b, "Đã copy ✓"); }
+    catch { flash(b, "Lỗi copy"); }
+  });
+  mk("Sửa", "✏️", () => startEditUser(bubble, histIndex));
+  bubble.parentElement.appendChild(bar);
+}
+
+/* Bật ô sửa câu hỏi tại chỗ; gửi lại sẽ thay câu hỏi và để trợ lý trả lời lại. */
+function startEditUser(bubble, histIndex) {
+  const content = bubble.parentElement;
+  if (content.querySelector(".edit-box")) return; // đang sửa rồi
+  const original = (history[histIndex] && history[histIndex].content) || bubble.textContent;
+  const bar = content.querySelector(".user-actions");
+
+  const box = document.createElement("div");
+  box.className = "edit-box";
+  const ta = document.createElement("textarea");
+  ta.className = "edit-area"; ta.value = original;
+  const row = document.createElement("div");
+  row.className = "edit-row";
+  const save = document.createElement("button");
+  save.type = "button"; save.className = "edit-save"; save.textContent = "↑ Gửi lại";
+  const cancel = document.createElement("button");
+  cancel.type = "button"; cancel.className = "edit-cancel"; cancel.textContent = "Huỷ";
+  row.append(cancel, save);
+  box.append(ta, row);
+
+  bubble.style.display = "none";
+  if (bar) bar.style.display = "none";
+  content.appendChild(box);
+
+  const autoresize = () => { ta.style.height = "auto"; ta.style.height = ta.scrollHeight + "px"; };
+  autoresize(); ta.addEventListener("input", autoresize);
+  ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
+
+  const close = () => { box.remove(); bubble.style.display = ""; if (bar) bar.style.display = ""; };
+  cancel.addEventListener("click", close);
+  ta.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") { e.preventDefault(); close(); }
+    else if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); save.click(); }
+  });
+  save.addEventListener("click", () => {
+    const nt = ta.value.trim();
+    if (!nt) return;
+    resubmitEdited(content.closest(".turn"), histIndex, nt);
+  });
+}
+
+/* Cắt hội thoại về trước câu hỏi được sửa, rồi hỏi lại với nội dung mới. */
+async function resubmitEdited(turnEl, histIndex, newText) {
+  if (streaming && controller) controller.abort(); // dừng luồng cũ (sẽ bị bỏ qua)
+  history.length = histIndex;                       // bỏ câu hỏi này + mọi thứ sau nó
+  let el = turnEl;                                   // xoá DOM từ câu hỏi này trở đi
+  while (el) { const next = el.nextElementSibling; el.remove(); el = next; }
+  await ask(newText);
 }
 
 /* Nút 👍/👎 đánh giá câu trả lời. Bấm lại cùng nút để bỏ chọn. */
@@ -614,7 +685,8 @@ function setStreaming(on) {
 async function ask(question) {
   lastQuestion = question;
   history.push({ role: "user", content: question });
-  addMessage("user", question);
+  const bubble = addMessage("user", question);
+  addUserActions(bubble, history.length - 1);
   await streamAnswer();
 }
 async function regenerate() {
@@ -628,7 +700,11 @@ async function streamAnswer() {
   bubble.classList.add("typing");
   bubble.textContent = "Đang tra cứu tài liệu…";
 
-  controller = new AbortController();
+  const myController = new AbortController();
+  controller = myController;
+  // Chủ sở hữu luồng hiện tại: nếu bị thay (vd sửa câu hỏi -> gửi lại) thì luồng cũ
+  // KHÔNG được đụng vào trạng thái/ lịch sử chung nữa.
+  const mine = () => controller === myController;
   setStreaming(true);
   let answer = "";
   let lastRender = 0;
@@ -677,17 +753,20 @@ async function streamAnswer() {
         }
       }
     }
-    if (answer) history.push({ role: "assistant", content: answer });
+    if (answer && mine()) history.push({ role: "assistant", content: answer });
   } catch (err) {
     if (err.name === "AbortError") {
-      if (answer) { bubble.innerHTML = renderMarkdown(answer); bubble.__md = answer; bubble.__sources = []; addActions(bubble); history.push({ role: "assistant", content: answer }); }
+      // Bị thay bởi luồng mới (sửa câu hỏi) -> bỏ qua, không giữ lại trả lời dở.
+      if (!mine()) { /* luồng cũ, không làm gì */ }
+      else if (answer) { bubble.innerHTML = renderMarkdown(answer); bubble.__md = answer; bubble.__sources = []; addActions(bubble); history.push({ role: "assistant", content: answer }); }
       else { bubble.closest(".turn")?.remove(); }
     } else {
       bubble.classList.remove("typing", "md");
       bubble.textContent = `⚠️ ${err.message}`;
     }
   } finally {
-    setStreaming(false); controller = null; input.focus();
+    if (mine()) { setStreaming(false); controller = null; }
+    input.focus();
   }
 }
 
