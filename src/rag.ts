@@ -62,3 +62,31 @@ export async function retrieve(
 
   return chunks.slice(0, topK);
 }
+
+/**
+ * Yêu cầu AutoRAG index lại kho tài liệu NGAY (thay vì chờ lịch tự động) — gọi sau
+ * khi tải lên / đồng bộ Drive để tài liệu mới tìm được sớm.
+ *
+ * Cần secret CF_API_TOKEN (token có quyền sửa AutoRAG của tài khoản). Thiếu token
+ * thì bỏ qua êm (tài liệu vẫn được index theo lịch mặc định của AutoRAG).
+ * REST: POST /accounts/{account_id}/autorag/rags/{rag}/sync
+ */
+export async function reindexAutorag(env: Env): Promise<{ ok: boolean; skipped?: boolean; error?: string }> {
+  if (!env.CF_API_TOKEN) return { ok: false, skipped: true, error: "Thiếu CF_API_TOKEN." };
+  const acct = env.CF_ACCOUNT_ID;
+  const rag = env.AUTORAG_NAME;
+  if (!acct || !rag) return { ok: false, skipped: true, error: "Thiếu CF_ACCOUNT_ID/AUTORAG_NAME." };
+  try {
+    const res = await fetch(
+      `https://api.cloudflare.com/client/v4/accounts/${acct}/autorag/rags/${rag}/sync`,
+      { method: "PATCH", headers: { authorization: `Bearer ${env.CF_API_TOKEN}`, "content-type": "application/json" } },
+    );
+    const data = (await res.json().catch(() => ({}))) as { success?: boolean; errors?: Array<{ message?: string }> };
+    if (!res.ok || data.success === false) {
+      return { ok: false, error: data.errors?.[0]?.message || `HTTP ${res.status}` };
+    }
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}

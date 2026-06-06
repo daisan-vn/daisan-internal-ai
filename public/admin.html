@@ -84,9 +84,10 @@
           <p class="note" id="gdriveState">Đang kiểm tra kết nối…</p>
           <div class="row" style="margin-top:12px">
             <button class="btn-primary" id="gdriveSync">⟳ Đồng bộ ngay</button>
+            <button class="btn-primary" id="reindex" style="background:#0ea5e9">⚡ Index lại ngay</button>
             <span class="status" id="gdriveStatus" style="margin:0"></span>
           </div>
-          <p class="note" style="margin-top:12px">Tự động đồng bộ mỗi ngày lúc <b>02:00</b>. File từ Drive (hợp đồng mẫu, SOP, chính sách, nội quy…) sẽ vào kho; AI dùng được sau khi AutoRAG index. Mỗi <b>thư mục con</b> trong Drive trở thành một phòng/nhóm tài liệu.</p>
+          <p class="note" style="margin-top:12px">Tự động đồng bộ mỗi ngày lúc <b>02:00</b>. File từ Drive (hợp đồng mẫu, SOP, chính sách, nội quy…) sẽ vào kho; AI dùng được sau khi AutoRAG index. Mỗi <b>thư mục con</b> trong Drive trở thành một phòng/nhóm tài liệu. Nút <b>Index lại ngay</b> buộc AutoRAG quét lại kho để tài liệu vừa thêm tìm được ngay (thay vì chờ lịch tự động).</p>
         </div>
 
         <div class="card2">
@@ -108,12 +109,15 @@
             <button class="btn-primary" id="up" disabled>Tải lên</button>
           </div>
           <div class="status" id="status"></div>
-          <p class="note" style="margin-top:14px">⏳ Tài liệu mới được AutoRAG <b>tự đồng bộ & index</b> (có thể mất vài phút–vài giờ). Cần index ngay: Cloudflare → AI Search → <b>daisan-internal-ai</b> → bấm <b>Sync</b>.</p>
+          <p class="note" style="margin-top:14px">⏳ Sau khi tải lên, hệ thống <b>tự yêu cầu AutoRAG index lại</b> để tài liệu tìm được sớm (thường vài phút). Cần ép ngay: bấm <b>⚡ Index lại ngay</b> ở khung trên.</p>
         </div>
 
         <div class="card2">
-          <h2>Tài liệu hiện có</h2>
-          <table><thead><tr><th>Tên file</th><th>Phòng</th><th>Dung lượng</th><th></th></tr></thead><tbody id="docs"></tbody></table>
+          <div class="row" style="justify-content:space-between;align-items:center">
+            <h2 style="margin:0">Tài liệu hiện có <span class="note" id="docsCount" style="font-weight:400"></span></h2>
+            <input type="search" id="docsSearch" placeholder="🔍 Tìm theo tên / phòng…" style="max-width:240px;padding:7px 12px;border:1px solid var(--border,#ddd);border-radius:8px;font:inherit" />
+          </div>
+          <table><thead><tr><th>Tên file</th><th>Phòng</th><th>Nguồn</th><th>Dung lượng</th><th></th></tr></thead><tbody id="docs"></tbody></table>
           <p class="note" id="empty" style="display:none">Chưa có tài liệu nào.</p>
         </div>
       </section>

@@ -1,5 +1,5 @@
 import type { ChatRequest, Env } from "./types";
-import { retrieve } from "./rag";
+import { retrieve, reindexAutorag } from "./rag";
 import { streamClaude, streamClaudeAgent } from "./llm";
 import { SYSTEM_PROMPT, buildContext, odooSystemNote } from "./prompt";
 import { ODOO_TOOLS, runOdooTool, describeOdooTool, odooConfigured, odooDiagnose } from "./odoo";
@@ -231,9 +231,14 @@ export default {
 
     // --- Admin: quản trị tài liệu trong R2 (sau Access; có thể siết theo role sau) ---
     if (path === "/api/admin/docs" && request.method === "GET") {
-      const list = await env.DOCS.list({ limit: 1000 });
+      const list = await env.DOCS.list({ limit: 1000, include: ["customMetadata"] } as R2ListOptions);
       return Response.json({
-        objects: list.objects.map((o) => ({ key: o.key, size: o.size, uploaded: o.uploaded?.getTime?.() ?? 0 })),
+        objects: list.objects.map((o) => ({
+          key: o.key,
+          size: o.size,
+          uploaded: o.uploaded?.getTime?.() ?? 0,
+          source: o.customMetadata?.source === "gdrive" ? "drive" : "upload",
+        })),
       });
     }
     if (path === "/api/admin/docs" && request.method === "DELETE") {
@@ -259,7 +264,18 @@ export default {
         httpMetadata: { contentType: file.type || "application/octet-stream" },
         customMetadata: { uploadedBy: hist.userEmail(request) },
       });
+      // Kích hoạt AutoRAG index lại để tài liệu mới tìm được sớm (không chặn phản hồi).
+      ctx.waitUntil(reindexAutorag(env).then(() => undefined));
       return Response.json({ ok: true, key });
+    }
+
+    // Admin: yêu cầu AutoRAG index lại kho tài liệu ngay.
+    if (path === "/api/admin/reindex" && request.method === "POST") {
+      if (!isAdmin(env, hist.userEmail(request))) {
+        return Response.json({ error: "Bạn không có quyền." }, { status: 403 });
+      }
+      const r = await reindexAutorag(env);
+      return Response.json(r, { status: r.ok ? 200 : 400, headers: { "cache-control": "no-store" } });
     }
 
     // Chẩn đoán kết nối Odoo (chỉ admin). Mở thẳng trên trình duyệt để xem JSON.

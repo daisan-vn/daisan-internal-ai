@@ -1,4 +1,5 @@
 import type { Env } from "./types";
+import { reindexAutorag } from "./rag";
 
 /**
  * Đồng bộ Google Drive (CHỈ ĐỌC) → R2 (kho tài liệu) → AutoRAG tự index.
@@ -303,6 +304,8 @@ export async function runSyncWithStatus(env: Env): Promise<void> {
   await writeSyncStatus(env, "running");
   try {
     const summary = await syncDrive(env);
+    // Có tài liệu mới/cập nhật -> yêu cầu AutoRAG index lại ngay (không chặn).
+    if (summary.added + summary.updated > 0) await reindexAutorag(env);
     await writeSyncStatus(env, "done", { summary });
   } catch (err) {
     await writeSyncStatus(env, "error", { error: err instanceof Error ? err.message : String(err) });

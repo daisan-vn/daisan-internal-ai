@@ -24,6 +24,9 @@ export interface Env {
   // secrets
   ANTHROPIC_API_KEY: string;
   AI_GATEWAY_TOKEN?: string;
+  // Token Cloudflare (quyền sửa AutoRAG) để kích hoạt index lại tài liệu ngay sau
+  // khi tải lên / đồng bộ Drive. Thiếu -> AutoRAG vẫn index theo lịch mặc định.
+  CF_API_TOKEN?: string;
 
   // Cờ chỉ dùng cho local dev (.dev.vars): "true" -> gọi thẳng Anthropic,
   // bỏ qua AI Gateway (xem llm.ts). Production để trống.

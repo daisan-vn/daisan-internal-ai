@@ -44,35 +44,94 @@ upBtn.addEventListener("click", async () => {
   upBtn.disabled = false;
 });
 
+const DEPT_LABELS = {
+  ketoan: "Kế toán", sop: "SOP / Quy trình", crm: "CRM / Kinh doanh",
+  mua: "Mua hàng", kho: "Kho", odoo: "Odoo",
+  hopdong: "Hợp đồng", chinhsach: "Chính sách", noiquy: "Nội quy", khac: "Khác",
+};
+const docsSearch = document.getElementById("docsSearch");
+const docsCount = document.getElementById("docsCount");
+let allDocs = [];
+
+function deptLabel(folder) { return DEPT_LABELS[folder] || folder || "—"; }
+
+function renderDocs() {
+  const q = (docsSearch && docsSearch.value || "").trim().toLowerCase();
+  docsEl.innerHTML = "";
+  const rows = allDocs.filter((o) => {
+    if (!q) return true;
+    return (o.name + " " + o.folder + " " + deptLabel(o.folder)).toLowerCase().includes(q);
+  });
+  emptyEl.style.display = allDocs.length ? "none" : "block";
+  if (docsCount) {
+    const byDept = {};
+    allDocs.forEach((o) => { byDept[o.folder] = (byDept[o.folder] || 0) + 1; });
+    const parts = Object.keys(byDept).sort().map((f) => deptLabel(f) + ": " + byDept[f]);
+    docsCount.textContent = allDocs.length
+      ? "— " + allDocs.length + " tài liệu" + (q ? " (hiện " + rows.length + ")" : "") + " · " + parts.join(", ")
+      : "";
+  }
+  for (const o of rows) {
+    const tr = document.createElement("tr");
+    const c1 = document.createElement("td"); c1.textContent = o.name;
+    const c2 = document.createElement("td"); c2.textContent = deptLabel(o.folder);
+    const c3 = document.createElement("td");
+    const badge = document.createElement("span");
+    badge.textContent = o.source === "drive" ? "📁 Drive" : "⬆️ Tải lên";
+    badge.style.cssText = "font-size:11px;padding:2px 8px;border-radius:10px;" +
+      (o.source === "drive" ? "background:#e0f2fe;color:#0369a1" : "background:#f1f5f9;color:#475569");
+    c3.appendChild(badge);
+    const c4 = document.createElement("td"); c4.textContent = fmtSize(o.size);
+    const c5 = document.createElement("td");
+    const del = document.createElement("button");
+    del.className = "del"; del.textContent = "Xóa";
+    del.addEventListener("click", async () => {
+      if (!confirm("Xóa tài liệu này khỏi kho?")) return;
+      try { await fetch("/api/admin/docs?key=" + encodeURIComponent(o.key), { method: "DELETE" }); } catch {}
+      loadDocs();
+    });
+    c5.appendChild(del);
+    tr.append(c1, c2, c3, c4, c5);
+    docsEl.appendChild(tr);
+  }
+}
+
 async function loadDocs() {
   try {
     const res = await fetch("/api/admin/docs");
     const { objects } = await res.json();
-    docsEl.innerHTML = "";
-    emptyEl.style.display = objects.length ? "none" : "block";
-    for (const o of objects) {
+    allDocs = (objects || []).map((o) => {
       const parts = o.key.split("/");
-      const folder = parts.length > 1 ? parts[0] : "—";
-      const name = parts[parts.length - 1];
-      const tr = document.createElement("tr");
-      const c1 = document.createElement("td"); c1.textContent = name;
-      const c2 = document.createElement("td"); c2.textContent = folder;
-      const c3 = document.createElement("td"); c3.textContent = fmtSize(o.size);
-      const c4 = document.createElement("td");
-      const del = document.createElement("button");
-      del.className = "del"; del.textContent = "Xóa";
-      del.addEventListener("click", async () => {
-        if (!confirm("Xóa tài liệu này khỏi kho?")) return;
-        try { await fetch("/api/admin/docs?key=" + encodeURIComponent(o.key), { method: "DELETE" }); } catch {}
-        loadDocs();
-      });
-      c4.appendChild(del);
-      tr.append(c1, c2, c3, c4);
-      docsEl.appendChild(tr);
-    }
+      return {
+        key: o.key,
+        name: parts[parts.length - 1],
+        folder: parts.length > 1 ? parts[0] : "khac",
+        size: o.size,
+        source: o.source || "upload",
+      };
+    }).sort((a, b) => a.folder.localeCompare(b.folder) || a.name.localeCompare(b.name));
+    renderDocs();
   } catch {}
 }
+if (docsSearch) docsSearch.addEventListener("input", renderDocs);
 loadDocs();
+
+/* Index lại AutoRAG ngay */
+const reindexBtn = document.getElementById("reindex");
+if (reindexBtn) reindexBtn.addEventListener("click", async () => {
+  reindexBtn.disabled = true;
+  const st = document.getElementById("gdriveStatus");
+  if (st) { st.textContent = "Đang yêu cầu index lại…"; st.style.color = "var(--muted)"; }
+  try {
+    const r = await fetch("/api/admin/reindex", { method: "POST" });
+    const j = await r.json();
+    if (st) {
+      if (r.ok) { st.textContent = "⚡ Đã yêu cầu AutoRAG index lại — tài liệu mới sẽ tìm được sau ít phút."; st.style.color = "#4ade80"; }
+      else { st.textContent = "❌ " + (j.error || "Không index được") + (j.skipped ? " (cần cấu hình CF_API_TOKEN)" : ""); st.style.color = "#ff8a8a"; }
+    }
+  } catch (e) { if (st) { st.textContent = "❌ " + e.message; st.style.color = "#ff8a8a"; } }
+  reindexBtn.disabled = false;
+});
 
 /* Nền Sáng/Tối */
 (function initTheme() {
