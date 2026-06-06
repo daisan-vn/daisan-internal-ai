@@ -229,6 +229,28 @@ export default {
       }
     }
 
+    // --- Mở/tải tài liệu nguồn (mọi user đã qua Access; CHẶN theo phòng ban) ---
+    if (path === "/api/doc" && request.method === "GET") {
+      const key = url.searchParams.get("key");
+      if (!key) return Response.json({ error: "Thiếu key" }, { status: 400 });
+      // Phân quyền: không cho mở tài liệu thuộc phòng bị chặn với user này.
+      const blocked = await blockedDeptsFor(env, hist.userEmail(request));
+      const dept = key.split("/")[0];
+      if (blocked.includes(dept)) {
+        return Response.json({ error: "Bạn không có quyền xem tài liệu phòng này." }, { status: 403 });
+      }
+      const obj = await env.DOCS.get(key);
+      if (!obj) return Response.json({ error: "Không tìm thấy tài liệu" }, { status: 404 });
+      const name = key.split("/").pop() || "tai-lieu";
+      const headers = new Headers();
+      obj.writeHttpMetadata(headers);
+      if (!headers.has("content-type")) headers.set("content-type", "application/octet-stream");
+      // Mở trực tiếp trên trình duyệt (PDF/ảnh/text); tên file giữ nguyên khi tải.
+      headers.set("content-disposition", `inline; filename*=UTF-8''${encodeURIComponent(name)}`);
+      headers.set("cache-control", "private, max-age=300");
+      return new Response(obj.body, { headers });
+    }
+
     // --- Admin: quản trị tài liệu trong R2 (sau Access; có thể siết theo role sau) ---
     if (path === "/api/admin/docs" && request.method === "GET") {
       const list = await env.DOCS.list({ limit: 1000, include: ["customMetadata"] } as R2ListOptions);

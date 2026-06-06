@@ -241,6 +241,12 @@ body {
   display: inline-block; background: var(--surface); border: 1px solid var(--border);
   border-radius: 7px; padding: 3px 9px; margin: 3px 5px 0 0;
 }
+.sources a.source-link {
+  display: inline-block; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 7px; padding: 3px 9px; margin: 3px 5px 0 0;
+  color: #2563eb; text-decoration: none; transition: .15s;
+}
+.sources a.source-link:hover { background: #2563eb; color: #fff; border-color: #2563eb; }
 
 /* Action bar (hiện rõ khi hover turn) */
 .actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; opacity: 0.55; transition: opacity .15s; }

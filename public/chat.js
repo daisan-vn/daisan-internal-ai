@@ -151,9 +151,23 @@ function renderSources(bubble, sources) {
   box.className = "sources";
   box.appendChild(document.createTextNode("Nguồn: "));
   for (const s of sources) {
-    const tag = document.createElement("span");
-    tag.textContent = s;
-    box.appendChild(tag);
+    // Nguồn dạng "phong/ten-file.pdf" -> link mở tài liệu; nguồn khác (vd Odoo) -> nhãn thường.
+    const isDoc = typeof s === "string" && s.includes("/");
+    if (isDoc) {
+      const name = s.split("/").pop();
+      const a = document.createElement("a");
+      a.className = "source-link";
+      a.href = "/api/doc?key=" + encodeURIComponent(s);
+      a.target = "_blank";
+      a.rel = "noopener";
+      a.title = "Mở tài liệu: " + s;
+      a.textContent = "📄 " + name;
+      box.appendChild(a);
+    } else {
+      const tag = document.createElement("span");
+      tag.textContent = s;
+      box.appendChild(tag);
+    }
   }
   bubble.parentElement.appendChild(box);
 }
