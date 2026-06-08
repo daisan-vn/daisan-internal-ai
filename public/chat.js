@@ -634,30 +634,42 @@ const asgDeadline = document.getElementById("asgDeadline");
 const asgStatus = document.getElementById("asgStatus");
 const asgSubmit = document.getElementById("asgSubmit");
 const asgCancel = document.getElementById("asgCancel");
-let assignOptionsLoaded = false;
+const asgRefresh = document.getElementById("asgRefresh");
+let assignLoading = false;
 
-function closeAssign() { if (assignModal) assignModal.hidden = true; }
-async function openAssign() {
-  assignModal.hidden = false;
-  if (assignOptionsLoaded) return;
-  asgStatus.textContent = "Đang tải dự án & nhân sự…"; asgStatus.style.color = "var(--muted)";
+// Tải (hoặc làm mới) danh sách dự án + nhân viên từ Odoo. Gọi mỗi lần mở modal
+// và khi bấm "Làm mới" -> dự án mới / đổi tên trong Odoo sẽ hiện ra ngay.
+async function loadAssignOptions() {
+  if (assignLoading) return;
+  assignLoading = true;
+  const had = allProjects.length || allAssignees.length; // đã có dữ liệu -> đây là lần làm mới
+  asgStatus.textContent = had ? "Đang làm mới dự án & nhân sự…" : "Đang tải dự án & nhân sự…";
+  asgStatus.style.color = "var(--muted)";
+  if (asgRefresh) asgRefresh.disabled = true;
   try {
     const res = await fetch("/api/assign/options");
     const d = await res.json();
     if (!res.ok) { asgStatus.textContent = "⚠️ " + (d.error || "Lỗi tải"); asgStatus.style.color = "#ff8a8a"; return; }
     allProjects = d.projects || [];
     allAssignees = d.assignees || [];
+    // Đồng bộ lại tên dự án đã chọn nếu Odoo đã đổi tên; bỏ chọn nếu dự án không còn.
+    if (selectedProjectId) {
+      const p = allProjects.find((x) => x.id === selectedProjectId);
+      if (p) selectedProjectName = p.name; else { selectedProjectId = null; selectedProjectName = ""; }
+    }
     renderProjectList(); renderProjectSel(); renderAssigneeList(); renderChips();
-    // Coi như đã tải khi có người nhận (không có người nhận thì cho thử lại lần sau).
-    assignOptionsLoaded = allAssignees.length > 0;
     const warn = [];
-    if (!(d.projects || []).length) warn.push("Chưa lấy được dự án nào — vẫn có thể giao việc không thuộc dự án.");
-    if (!(d.assignees || []).length) warn.push("Chưa lấy được danh sách người nhận từ Odoo.");
+    if (!allProjects.length) warn.push("Chưa lấy được dự án nào — vẫn có thể giao việc không thuộc dự án.");
+    if (!allAssignees.length) warn.push("Chưa lấy được danh sách người nhận từ Odoo.");
     if (d.errors && d.errors.length) warn.push(...d.errors);
-    asgStatus.innerHTML = warn.length ? "⚠️ " + warn.map(escapeHtml).join("<br>") : "";
-    asgStatus.style.color = warn.length ? "#e0a341" : "";
+    asgStatus.innerHTML = warn.length ? "⚠️ " + warn.map(escapeHtml).join("<br>") : (had ? "✅ Danh sách đã cập nhật." : "");
+    asgStatus.style.color = warn.length ? "#e0a341" : "#4ade80";
   } catch (e) { asgStatus.textContent = "⚠️ " + e.message; asgStatus.style.color = "#ff8a8a"; }
+  finally { assignLoading = false; if (asgRefresh) asgRefresh.disabled = false; }
 }
+function closeAssign() { if (assignModal) assignModal.hidden = true; }
+function openAssign() { assignModal.hidden = false; loadAssignOptions(); }
+if (asgRefresh) asgRefresh.addEventListener("click", loadAssignOptions);
 if (assignBtn) assignBtn.addEventListener("click", () => { closeSidebar(); openAssign(); });
 if (asgCancel) asgCancel.addEventListener("click", closeAssign);
 if (assignModal) assignModal.addEventListener("click", (e) => { if (e.target === assignModal) closeAssign(); });

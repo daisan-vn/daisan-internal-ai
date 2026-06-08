@@ -301,6 +301,15 @@ body {
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
 }
 .modal h2 { font-size: 17px; margin: 0 0 16px; }
+.modal-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 16px; }
+.modal-head h2 { margin: 0; }
+.btn-mini {
+  background: var(--surface-2); color: var(--text); border: 1px solid var(--border);
+  border-radius: 8px; padding: 6px 10px; font: inherit; font-size: 13px;
+  cursor: pointer; white-space: nowrap;
+}
+.btn-mini:hover { background: var(--surface); }
+.btn-mini:disabled { opacity: .5; cursor: not-allowed; }
 .fld { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); margin-bottom: 14px; }
 .fld select, .fld input, .fld textarea {
   background: var(--surface-2); color: var(--text); border: 1px solid var(--border);
