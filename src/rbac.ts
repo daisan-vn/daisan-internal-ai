@@ -89,10 +89,17 @@ export async function allowedDeptsFor(env: Env, email: string): Promise<string[]
   return (ALL_DEPTS as readonly string[]).filter((d) => !blocked.has(d));
 }
 
-/** Có quyền giao việc (tạo task Odoo) không? Admin hoặc trong ASSIGNER_EMAILS. */
+/**
+ * Có quyền giao việc (tạo task Odoo) không?
+ * - Chưa cấu hình ASSIGNER_EMAILS (để trống) -> MỌI nhân viên đều giao việc được
+ *   (app nằm sau Cloudflare Access nên ai vào được đều là người nội bộ).
+ * - Có cấu hình -> chỉ admin hoặc email trong danh sách mới giao việc được.
+ * (Cùng quy ước "danh sách rỗng = mở cho tất cả" như isAdmin/ADMIN_EMAILS.)
+ */
 export function canAssign(env: Env, email: string): boolean {
-  if (isAdmin(env, email)) return true;
   const list = (env.ASSIGNER_EMAILS || "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
+  if (!list.length) return true; // mặc định: mọi nhân viên đều giao việc được
+  if (isAdmin(env, email)) return true;
   return list.includes((email || "").toLowerCase());
 }
 

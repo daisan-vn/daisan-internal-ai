@@ -61,7 +61,9 @@
     // xem được tài liệu của phòng đó. Phòng không liệt kê = mở cho mọi nhân viên.
     "RESTRICTED_DEPTS": "ketoan,mua",
 
-    // Người được giao việc (tạo task Odoo) NGOÀI admin — danh sách email, phẩy.
+    // Quyền giao việc (tạo task Odoo trong Odoo). Để TRỐNG = mọi nhân viên đều
+    // giao việc được. Điền danh sách email (phẩy) nếu muốn GIỚI HẠN chỉ admin +
+    // những người này.
     "ASSIGNER_EMAILS": "",
 
     // --- Google Drive sync (CHỈ ĐỌC) — xem src/gdrive.ts ---
