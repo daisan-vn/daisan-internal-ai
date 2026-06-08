@@ -547,8 +547,87 @@ async function loadMe() {
 /* ---------------- Giao việc (Odoo) ---------------- */
 const assignBtn = document.getElementById("assignBtn");
 const assignModal = document.getElementById("assignModal");
-const asgProject = document.getElementById("asgProject");
-const asgUsers = document.getElementById("asgUsers");
+const asgProjectSearch = document.getElementById("asgProjectSearch");
+const asgProjectSel = document.getElementById("asgProjectSel");
+const asgProjectList = document.getElementById("asgProjectList");
+const asgUserSearch = document.getElementById("asgUserSearch");
+const asgUserChips = document.getElementById("asgUserChips");
+const asgUserList = document.getElementById("asgUserList");
+
+// Dữ liệu + lựa chọn cho 2 picker (dự án: chọn 1; người nhận: chọn nhiều).
+let allProjects = [];
+let allAssignees = [];
+let selectedProjectId = null;
+let selectedProjectName = "";
+const selectedAssignees = new Map(); // id -> name
+const PICKER_CAP = 300; // tối đa số dòng hiển thị mỗi lần; gõ để thu hẹp
+
+// Bỏ dấu tiếng Việt -> tìm không phân biệt dấu ("can tho" khớp "Cần Thơ").
+function viNorm(s) {
+  return (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d");
+}
+function pickerFilter(list, q) {
+  const nq = viNorm((q || "").trim());
+  return nq ? list.filter((x) => viNorm(x.name).includes(nq)) : list;
+}
+function moreRow(total) {
+  return total > PICKER_CAP ? `<div class="picker-more">… còn ${total - PICKER_CAP} mục — gõ để thu hẹp.</div>` : "";
+}
+
+function renderProjectList() {
+  const all = pickerFilter(allProjects, asgProjectSearch.value);
+  if (!all.length) { asgProjectList.innerHTML = '<div class="picker-empty">Không tìm thấy dự án phù hợp.</div>'; return; }
+  asgProjectList.innerHTML = all.slice(0, PICKER_CAP).map((p) =>
+    `<div class="picker-item${p.id === selectedProjectId ? " sel" : ""}" data-id="${p.id}">` +
+    `<span class="tick">${p.id === selectedProjectId ? "✓" : ""}</span>${escapeHtml(p.name)}</div>`).join("") + moreRow(all.length);
+}
+function renderProjectSel() {
+  asgProjectSel.innerHTML = selectedProjectId
+    ? `✓ Đã chọn: <b>${escapeHtml(selectedProjectName)}</b> · <a id="asgProjClear">Bỏ chọn</a>`
+    : "Chưa chọn — sẽ tạo việc không thuộc dự án.";
+}
+function renderAssigneeList() {
+  const all = pickerFilter(allAssignees, asgUserSearch.value);
+  if (!all.length) { asgUserList.innerHTML = '<div class="picker-empty">Không tìm thấy nhân viên phù hợp.</div>'; return; }
+  asgUserList.innerHTML = all.slice(0, PICKER_CAP).map((u) => {
+    const on = selectedAssignees.has(u.id);
+    return `<div class="picker-item${on ? " sel" : ""}" data-id="${u.id}"><span class="tick">${on ? "✓" : ""}</span>${escapeHtml(u.name)}</div>`;
+  }).join("") + moreRow(all.length);
+}
+function renderChips() {
+  asgUserChips.innerHTML = [...selectedAssignees.entries()].map(([id, name]) =>
+    `<span class="chip">${escapeHtml(name)}<button type="button" data-id="${id}" aria-label="Bỏ chọn">×</button></span>`).join("");
+}
+
+// Sự kiện picker (event delegation cho danh sách render động).
+if (asgProjectSearch) asgProjectSearch.addEventListener("input", renderProjectList);
+if (asgProjectList) asgProjectList.addEventListener("click", (e) => {
+  const row = e.target.closest(".picker-item"); if (!row) return;
+  const id = Number(row.dataset.id);
+  if (selectedProjectId === id) { selectedProjectId = null; selectedProjectName = ""; }
+  else { selectedProjectId = id; selectedProjectName = (allProjects.find((p) => p.id === id) || {}).name || ""; }
+  renderProjectList(); renderProjectSel();
+});
+if (asgProjectSel) asgProjectSel.addEventListener("click", (e) => {
+  if (e.target.id !== "asgProjClear") return;
+  selectedProjectId = null; selectedProjectName = ""; renderProjectList(); renderProjectSel();
+});
+if (asgUserSearch) asgUserSearch.addEventListener("input", renderAssigneeList);
+if (asgUserList) asgUserList.addEventListener("click", (e) => {
+  const row = e.target.closest(".picker-item"); if (!row) return;
+  const id = Number(row.dataset.id);
+  let on;
+  if (selectedAssignees.has(id)) { selectedAssignees.delete(id); on = false; }
+  else { selectedAssignees.set(id, (allAssignees.find((u) => u.id === id) || {}).name || ""); on = true; }
+  // Cập nhật tại chỗ (không render lại cả danh sách -> không nhảy thanh cuộn).
+  row.classList.toggle("sel", on);
+  const tick = row.querySelector(".tick"); if (tick) tick.textContent = on ? "✓" : "";
+  renderChips();
+});
+if (asgUserChips) asgUserChips.addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-id]"); if (!btn) return;
+  selectedAssignees.delete(Number(btn.dataset.id)); renderAssigneeList(); renderChips();
+});
 const asgTitle = document.getElementById("asgTitle");
 const asgDesc = document.getElementById("asgDesc");
 const asgDeadline = document.getElementById("asgDeadline");
@@ -561,18 +640,16 @@ function closeAssign() { if (assignModal) assignModal.hidden = true; }
 async function openAssign() {
   assignModal.hidden = false;
   if (assignOptionsLoaded) return;
-  asgProject.innerHTML = '<option value="">(Không thuộc dự án)</option>';
   asgStatus.textContent = "Đang tải dự án & nhân sự…"; asgStatus.style.color = "var(--muted)";
   try {
     const res = await fetch("/api/assign/options");
     const d = await res.json();
     if (!res.ok) { asgStatus.textContent = "⚠️ " + (d.error || "Lỗi tải"); asgStatus.style.color = "#ff8a8a"; return; }
-    if ((d.projects || []).length) {
-      asgProject.innerHTML += d.projects.map((p) => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("");
-    }
-    asgUsers.innerHTML = (d.assignees || []).map((u) => `<option value="${u.id}">${escapeHtml(u.name)}</option>`).join("");
+    allProjects = d.projects || [];
+    allAssignees = d.assignees || [];
+    renderProjectList(); renderProjectSel(); renderAssigneeList(); renderChips();
     // Coi như đã tải khi có người nhận (không có người nhận thì cho thử lại lần sau).
-    assignOptionsLoaded = (d.assignees || []).length > 0;
+    assignOptionsLoaded = allAssignees.length > 0;
     const warn = [];
     if (!(d.projects || []).length) warn.push("Chưa lấy được dự án nào — vẫn có thể giao việc không thuộc dự án.");
     if (!(d.assignees || []).length) warn.push("Chưa lấy được danh sách người nhận từ Odoo.");
@@ -587,7 +664,7 @@ if (assignModal) assignModal.addEventListener("click", (e) => { if (e.target ===
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && assignModal && !assignModal.hidden) closeAssign(); });
 if (asgSubmit) asgSubmit.addEventListener("click", async () => {
   const name = asgTitle.value.trim();
-  const assigneeIds = [...asgUsers.selectedOptions].map((o) => Number(o.value));
+  const assigneeIds = [...selectedAssignees.keys()];
   if (!name) { asgStatus.textContent = "⚠️ Nhập tiêu đề công việc."; asgStatus.style.color = "#ff8a8a"; return; }
   if (!assigneeIds.length) { asgStatus.textContent = "⚠️ Chọn ít nhất một người nhận."; asgStatus.style.color = "#ff8a8a"; return; }
   asgSubmit.disabled = true; asgStatus.textContent = "Đang tạo công việc trong Odoo…"; asgStatus.style.color = "var(--muted)";
@@ -597,7 +674,7 @@ if (asgSubmit) asgSubmit.addEventListener("click", async () => {
       body: JSON.stringify({
         name,
         description: asgDesc.value.trim() || undefined,
-        projectId: asgProject.value ? Number(asgProject.value) : undefined,
+        projectId: selectedProjectId || undefined,
         assigneeIds,
         deadline: asgDeadline.value || undefined,
       }),
@@ -608,7 +685,7 @@ if (asgSubmit) asgSubmit.addEventListener("click", async () => {
         (d.activityWarning ? "<br><span style='color:#e0a341'>Lưu ý: hoạt động nhắc việc chưa tạo được (" + escapeHtml(d.activityWarning) + ")</span>" : "");
       asgStatus.style.color = "#4ade80";
       asgTitle.value = ""; asgDesc.value = ""; asgDeadline.value = "";
-      [...asgUsers.options].forEach((o) => (o.selected = false));
+      selectedAssignees.clear(); asgUserSearch.value = ""; renderAssigneeList(); renderChips();
     } else { asgStatus.textContent = "❌ " + (d.error || "Lỗi"); asgStatus.style.color = "#ff8a8a"; }
   } catch (e) { asgStatus.textContent = "❌ " + e.message; asgStatus.style.color = "#ff8a8a"; }
   asgSubmit.disabled = false;

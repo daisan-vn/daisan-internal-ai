@@ -314,6 +314,37 @@ body {
 .btn-accent:disabled { opacity: .5; cursor: not-allowed; }
 .modal-status { font-size: 13px; min-height: 18px; margin-bottom: 10px; }
 
+/* Picker có tìm kiếm (Giao việc: chọn dự án / nhân viên trong danh sách dài). */
+.picker { display: flex; flex-direction: column; gap: 6px; }
+.picker-list {
+  border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2);
+  max-height: 170px; overflow-y: auto;
+}
+.picker-item {
+  display: flex; align-items: center; gap: 8px; padding: 8px 11px;
+  font-size: 14px; color: var(--text); cursor: pointer;
+  border-bottom: 1px solid var(--border);
+}
+.picker-item:last-child { border-bottom: none; }
+.picker-item:hover { background: var(--surface); }
+.picker-item.sel { background: rgba(79, 140, 255, 0.16); }
+.picker-item .tick { width: 14px; color: var(--accent); font-weight: 700; }
+.picker-empty, .picker-more { padding: 9px 11px; font-size: 13px; color: var(--muted); }
+.picker-sel { font-size: 12.5px; color: var(--muted); }
+.picker-sel a { color: var(--accent); cursor: pointer; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips:empty { display: none; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(79, 140, 255, 0.16); border: 1px solid var(--border);
+  color: var(--text); border-radius: 999px; padding: 3px 6px 3px 10px; font-size: 12.5px;
+}
+.chip button {
+  border: none; background: transparent; color: var(--muted);
+  cursor: pointer; font-size: 15px; line-height: 1; padding: 0 2px;
+}
+.chip button:hover { color: var(--text); }
+
 /* ---------------- Composer ---------------- */
 .composer-wrap {
   padding: 10px 24px 16px;

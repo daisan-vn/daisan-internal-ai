@@ -99,12 +99,22 @@
     <div class="modal-backdrop" id="assignModal" hidden>
       <div class="modal">
         <h2>🗂️ Giao việc — tạo công việc trong Odoo</h2>
-        <label class="fld">Dự án
-          <select id="asgProject"></select>
-        </label>
-        <label class="fld">Người nhận (giữ Ctrl/Cmd để chọn nhiều)
-          <select id="asgUsers" multiple size="6"></select>
-        </label>
+        <div class="fld">
+          <span>Dự án — gõ để tìm (để trống = không thuộc dự án)</span>
+          <div class="picker">
+            <input id="asgProjectSearch" class="picker-search" type="text" placeholder="🔍 Tìm dự án…" autocomplete="off" />
+            <div id="asgProjectSel" class="picker-sel"></div>
+            <div id="asgProjectList" class="picker-list"></div>
+          </div>
+        </div>
+        <div class="fld">
+          <span>Người nhận — gõ để tìm, bấm để chọn nhiều người</span>
+          <div class="picker">
+            <input id="asgUserSearch" class="picker-search" type="text" placeholder="🔍 Tìm nhân viên…" autocomplete="off" />
+            <div id="asgUserChips" class="chips"></div>
+            <div id="asgUserList" class="picker-list"></div>
+          </div>
+        </div>
         <label class="fld">Tiêu đề công việc *
           <input id="asgTitle" type="text" placeholder="VD: Soạn báo giá khách A" />
         </label>
